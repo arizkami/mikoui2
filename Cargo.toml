@@ -3,7 +3,18 @@ name = "mikoui"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "mikoui"
+path = "src/lib.rs"
+
+[[example]]
+name = "direct_skia"
+path = "examples/direct_skia.rs"
+
 [dependencies]
 skia-safe = { version = "0.78", features = ["textlayout"] }
 winit = "0.30"
 softbuffer = "0.4"
+resvg = "0.42"
+usvg = "0.42"
+tiny-skia = "0.11"

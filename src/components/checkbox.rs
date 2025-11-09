@@ -42,7 +42,7 @@ impl Checkbox {
 }
 
 impl Widget for Checkbox {
-    fn draw(&self, canvas: &Canvas, font_factory: &dyn Fn(f32, i32) -> Font) {
+    fn draw(&self, canvas: &Canvas, font_manager: &mut crate::core::FontManager) {
         let border_radius = 4.0;
 
         // Animated scale
@@ -163,7 +163,7 @@ impl Widget for Checkbox {
         }
 
         // Animated label
-        let font = font_factory(13.0, 400);
+        let font = font_manager.create_font(self.label, 13.0, 400);
         let label_alpha = 1.0 - (self.active_progress * 0.2);
         let mut text_paint = Paint::default();
         text_paint.set_anti_alias(true);

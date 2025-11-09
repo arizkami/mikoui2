@@ -59,9 +59,9 @@ impl Slider {
 }
 
 impl Widget for Slider {
-    fn draw(&self, canvas: &Canvas, font_factory: &dyn Fn(f32, i32) -> Font) {
+    fn draw(&self, canvas: &Canvas, font_manager: &mut crate::core::FontManager) {
         // Draw label
-        let font = font_factory(12.0, 400);
+        let font = font_manager.create_font(self.label, 12.0, 400);
         let mut text_paint = Paint::default();
         text_paint.set_anti_alias(true);
         text_paint.set_color(ZedTheme::TEXT);

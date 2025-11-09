@@ -32,8 +32,9 @@ impl Label {
 }
 
 impl Widget for Label {
-    fn draw(&self, canvas: &Canvas, font_factory: &dyn Fn(f32, i32) -> Font) {
-        let font = font_factory(self.font_size, self.weight);
+    fn draw(&self, canvas: &Canvas, font_manager: &mut crate::core::FontManager) {
+        // Pass text for language detection
+        let font = font_manager.create_font(self.text, self.font_size, self.weight);
 
         let mut paint = Paint::default();
         paint.set_anti_alias(true);

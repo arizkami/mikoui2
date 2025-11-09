@@ -43,7 +43,7 @@ impl ProgressBar {
 }
 
 impl Widget for ProgressBar {
-    fn draw(&self, canvas: &Canvas, font_factory: &dyn Fn(f32, i32) -> Font) {
+    fn draw(&self, canvas: &Canvas, font_manager: &mut crate::core::FontManager) {
         let border_radius = self.height / 2.0;
 
         // Draw background with subtle gradient
@@ -103,7 +103,7 @@ impl Widget for ProgressBar {
 
         // Draw label if present
         if let Some(label) = self.label {
-            let font = font_factory(11.0, 500);
+            let font = font_manager.create_font(label, 11.0, 500);
             
             // Draw text with shadow for better visibility
             let (text_width, _) = font.measure_str(label, None);

@@ -48,7 +48,7 @@ impl Input {
 }
 
 impl Widget for Input {
-    fn draw(&self, canvas: &Canvas, font_factory: &dyn Fn(f32, i32) -> Font) {
+    fn draw(&self, canvas: &Canvas, font_manager: &mut crate::core::FontManager) {
         let border_radius = 6.0;
         let padding = 12.0;
 
@@ -171,7 +171,7 @@ impl Widget for Input {
             &self.text
         };
         let font_weight = if self.text.is_empty() { 350 } else { 400 };
-        let font = font_factory(13.0, font_weight);
+        let font = font_manager.create_font(display_text, 13.0, font_weight);
 
         let text_color = if self.text.is_empty() {
             ZedTheme::TEXT_MUTED

@@ -47,7 +47,7 @@ impl Button {
 }
 
 impl Widget for Button {
-    fn draw(&self, canvas: &Canvas, font_factory: &dyn Fn(f32, i32) -> Font) {
+    fn draw(&self, canvas: &Canvas, font_manager: &mut crate::core::FontManager) {
         let border_radius = 6.0;
 
         // Define colors based on style
@@ -148,7 +148,7 @@ impl Widget for Button {
         } else {
             450
         };
-        let font = font_factory(13.0, font_weight);
+        let font = font_manager.create_font(self.text, 13.0, font_weight);
 
         let mut text_paint = Paint::default();
         text_paint.set_anti_alias(true);

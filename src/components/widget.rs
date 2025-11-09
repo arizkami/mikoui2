@@ -1,9 +1,11 @@
 use skia_safe::{Canvas, Font};
 
+use crate::core::FontManager;
+
 /// Base trait for all UI widgets
 pub trait Widget {
-    /// Draw the widget on the canvas
-    fn draw(&self, canvas: &Canvas, font_factory: &dyn Fn(f32, i32) -> Font);
+    /// Draw the widget on the canvas with font manager
+    fn draw(&self, canvas: &Canvas, font_manager: &mut FontManager);
     
     /// Check if a point is inside the widget bounds
     fn contains(&self, x: f32, y: f32) -> bool;

@@ -33,7 +33,7 @@ impl Panel {
 }
 
 impl Widget for Panel {
-    fn draw(&self, canvas: &Canvas, font_factory: &dyn Fn(f32, i32) -> Font) {
+    fn draw(&self, canvas: &Canvas, font_manager: &mut crate::core::FontManager) {
         let border_radius = 8.0;
 
         // Animated shadow
@@ -105,7 +105,7 @@ impl Widget for Panel {
 
         // Draw title if present
         if let Some(title) = self.title {
-            let font = font_factory(14.0, 600);
+            let font = font_manager.create_font(title, 14.0, 600);
             let mut text_paint = Paint::default();
             text_paint.set_anti_alias(true);
             text_paint.set_color(ZedTheme::TEXT);
