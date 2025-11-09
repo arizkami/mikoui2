@@ -1,0 +1,9 @@
+[package]
+name = "mikoui"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+skia-safe = { version = "0.78", features = ["textlayout"] }
+winit = "0.30"
+softbuffer = "0.4"
