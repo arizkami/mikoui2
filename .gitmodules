@@ -1,0 +1,3 @@
+[submodule "src/components/icons"]
+	path = src/components/icons
+	url = https://github.com/lucide-icons/lucide
