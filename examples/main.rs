@@ -1,8 +1,8 @@
 use mikoui::{
-    Badge, Button, Card, Checkbox, ContextMenu, Dropdown, FontManager, Icon, IconSize, Input,
-    Label, LucideIcons, MenuItem, ProgressBar, Size, Theme, Variant, Widget,
+    set_theme, Badge, Button, Card, Checkbox, ContextMenu, Dropdown, FontManager, Icon, IconSize,
+    Input, Label, LucideIcons, MenuItem, ProgressBar, ProgressSize, Size, Skeleton, Theme,
+    ThemeColors, ThemeMode, Variant, Widget,
 };
-use skia_safe::Color;
 use softbuffer::{Context, Surface};
 use std::num::NonZeroU32;
 use std::rc::Rc;
@@ -27,10 +27,18 @@ struct App {
     context_menu: Option<ContextMenu>,
     dropdown_indices: Vec<usize>, // Track which widgets are dropdowns
     open_dropdown: Option<usize>, // Track which dropdown is currently open (z-index 9999)
+    theme_mode: ThemeMode,
+    theme_colors: ThemeColors,
+    theme_button_index: Option<usize>, // Track the theme toggle button
+    viewport_size: (f32, f32),
 }
 
 impl App {
     fn new() -> Self {
+        let theme_mode = ThemeMode::Dark;
+        let theme_colors = ThemeColors::dark();
+        // Initialize global theme
+        set_theme(theme_colors);
         Self {
             window: None,
             surface: None,
@@ -42,7 +50,25 @@ impl App {
             context_menu: None,
             dropdown_indices: Vec::new(),
             open_dropdown: None,
+            theme_mode,
+            theme_colors,
+            theme_button_index: None,
+            viewport_size: (WINDOW_WIDTH, WINDOW_HEIGHT),
         }
+    }
+    
+    fn toggle_theme(&mut self) {
+        self.theme_mode = match self.theme_mode {
+            ThemeMode::Dark => ThemeMode::Light,
+            ThemeMode::Light => ThemeMode::Dark,
+        };
+        self.theme_colors = match self.theme_mode {
+            ThemeMode::Dark => ThemeColors::dark(),
+            ThemeMode::Light => ThemeColors::light(),
+        };
+        // Set global theme for components
+        set_theme(self.theme_colors.clone());
+        self.build_ui();
     }
 
     fn build_ui(&mut self) {
@@ -50,122 +76,164 @@ impl App {
         self.dropdown_indices.clear();
 
         // Header
+        let padding = 32.0;
         self.widgets.push(Box::new(Label::new(
-            40.0,
-            40.0,
-            "skiacn/ui Design System",
+            padding,
+            padding,
+            "MikoUI Design System",
             32.0,
             700,
-            Theme::FOREGROUND,
+            self.theme_colors.foreground,
         )));
         self.widgets.push(Box::new(Label::new(
-            40.0,
-            80.0,
-            "Beautifully designed components built with Radix UI principles",
+            padding,
+            padding + 40.0,
+            "Beautifully designed components built with skia principles",
             16.0,
             400,
-            Theme::MUTED_FOREGROUND,
+            self.theme_colors.muted_foreground,
+        )));
+        
+        // Theme toggle button with icon
+        let theme_icon = match self.theme_mode {
+            ThemeMode::Dark => LucideIcons::SUN,
+            ThemeMode::Light => LucideIcons::MOON,
+        };
+        self.theme_button_index = Some(self.widgets.len());
+        let icon_x = self.viewport_size.0 - padding - 40.0;
+        self.widgets.push(Box::new(Icon::new(
+            icon_x,
+            padding + 5.0,
+            theme_icon,
+            IconSize::Large,
+            self.theme_colors.foreground,
         )));
 
+        let content_width = (self.viewport_size.0 - padding * 2.0).max(320.0);
+        let column_spacing = 24.0;
+        let section_spacing = 24.0;
+        let two_columns = content_width >= 900.0;
+        let column_width = if two_columns {
+            (content_width - column_spacing) / 2.0
+        } else {
+            content_width
+        };
+        let mut column_y = [padding + 110.0, padding + 110.0];
+        let mut next_slot = |preferred: Option<usize>, height: f32, span_full: bool| {
+            if span_full || !two_columns {
+                let start_y = column_y[0].max(column_y[1]);
+                column_y = [start_y + height + section_spacing; 2];
+                (padding, start_y, content_width)
+            } else {
+                let mut column = preferred.unwrap_or_else(|| {
+                    if column_y[0] <= column_y[1] {
+                        0
+                    } else {
+                        1
+                    }
+                });
+                if column > 1 {
+                    column = if column_y[0] <= column_y[1] { 0 } else { 1 };
+                }
+                let start_y = column_y[column];
+                column_y[column] = start_y + height + section_spacing;
+                let x = if column == 0 {
+                    padding
+                } else {
+                    padding + column_width + column_spacing
+                };
+                (x, start_y, column_width)
+            }
+        };
+
         // Button variants section
-        self.widgets.push(Box::new(Card::new(40.0, 120.0, 560.0, 200.0)));
+        let row_gap = 56.0;
+        let button_section_width = if two_columns { column_width } else { content_width };
+        let button_columns_guess = if button_section_width < 460.0 { 2 } else { 4 };
+        let variant_rows = (4 + button_columns_guess - 1) / button_columns_guess;
+        let size_rows = (4 + button_columns_guess - 1) / button_columns_guess;
+        let button_card_height =
+            70.0 + (variant_rows + size_rows) as f32 * row_gap + section_spacing;
+        let (card_x, card_y, card_width) = next_slot(Some(0), button_card_height, false);
+        self.widgets
+            .push(Box::new(Card::new(card_x, card_y, card_width, button_card_height)));
         self.widgets.push(Box::new(Label::new(
-            60.0,
-            140.0,
+            card_x + 20.0,
+            card_y + 20.0,
             "Button Variants",
             20.0,
             600,
-            Theme::FOREGROUND,
+            self.theme_colors.foreground,
         )));
 
-        let mut btn_x = 60.0;
-        let btn_y = 180.0;
-        
-        self.widgets.push(Box::new(
-            Button::new(btn_x, btn_y, 120.0, "Default")
-                .variant(Variant::Default)
-                .size(Size::Md),
-        ));
-        btn_x += 130.0;
-        
-        self.widgets.push(Box::new(
-            Button::new(btn_x, btn_y, 120.0, "Secondary")
-                .variant(Variant::Secondary)
-                .size(Size::Md),
-        ));
-        btn_x += 130.0;
-        
-        self.widgets.push(Box::new(
-            Button::new(btn_x, btn_y, 120.0, "Outline")
-                .variant(Variant::Outline)
-                .size(Size::Md),
-        ));
-        btn_x += 130.0;
-        
-        self.widgets.push(Box::new(
-            Button::new(btn_x, btn_y, 120.0, "Ghost")
-                .variant(Variant::Ghost)
-                .size(Size::Md),
-        ));
+        let inner_x = card_x + 20.0;
+        let button_columns = if card_width < 460.0 { 2 } else { 4 };
+        let button_gap = 12.0;
+        let button_width = (card_width - 40.0
+            - button_gap * (button_columns as f32 - 1.0))
+            / button_columns as f32;
 
-        // Button sizes
-        let mut btn_x = 60.0;
-        let btn_y = 240.0;
-        
-        self.widgets.push(Box::new(
-            Button::new(btn_x, btn_y, 100.0, "Small")
-                .variant(Variant::Default)
-                .size(Size::Sm),
-        ));
-        btn_x += 110.0;
-        
-        self.widgets.push(Box::new(
-            Button::new(btn_x, btn_y, 100.0, "Medium")
-                .variant(Variant::Default)
-                .size(Size::Md),
-        ));
-        btn_x += 110.0;
-        
-        self.widgets.push(Box::new(
-            Button::new(btn_x, btn_y, 100.0, "Large")
-                .variant(Variant::Default)
-                .size(Size::Lg),
-        ));
-        btn_x += 110.0;
-        
-        self.widgets.push(Box::new(
-            Button::new(btn_x, btn_y, 120.0, "Destructive")
-                .variant(Variant::Destructive)
-                .size(Size::Md),
-        ));
+        let variant_buttons = [
+            ("Default", Variant::Default, Size::Md),
+            ("Secondary", Variant::Secondary, Size::Md),
+            ("Outline", Variant::Outline, Size::Md),
+            ("Ghost", Variant::Ghost, Size::Md),
+        ];
+        let size_buttons = [
+            ("Small", Variant::Default, Size::Sm),
+            ("Medium", Variant::Default, Size::Md),
+            ("Large", Variant::Default, Size::Lg),
+            ("Destructive", Variant::Destructive, Size::Md),
+        ];
+
+        let mut current_y = card_y + 70.0;
+        for group in [variant_buttons.as_slice(), size_buttons.as_slice()] {
+            for chunk in group.chunks(button_columns) {
+                let mut btn_x = inner_x;
+                for (label, variant, size) in chunk {
+                    self.widgets.push(Box::new(
+                        Button::new(btn_x, current_y, button_width, label)
+                            .variant(*variant)
+                            .size(*size),
+                    ));
+                    btn_x += button_width + button_gap;
+                }
+                current_y += row_gap;
+            }
+        }
 
         // Input section
-        self.widgets.push(Box::new(Card::new(620.0, 120.0, 540.0, 240.0)));
+        let input_card_height = 260.0;
+        let (input_x, input_y, input_width) = next_slot(Some(1), input_card_height, false);
+        self.widgets
+            .push(Box::new(Card::new(input_x, input_y, input_width, input_card_height)));
         self.widgets.push(Box::new(Label::new(
-            640.0,
-            140.0,
+            input_x + 20.0,
+            input_y + 20.0,
             "Input & Select",
             20.0,
             600,
-            Theme::FOREGROUND,
+            self.theme_colors.foreground,
         )));
 
+        let inner_width = input_width - 40.0;
+        let field_x = input_x + 20.0;
         self.widgets.push(Box::new(
-            Input::new(640.0, 180.0, 480.0, "Enter your email...")
-                .size(Size::Md),
+            Input::new(field_x, input_y + 70.0, inner_width, "Enter your email...").size(Size::Md),
         ));
-        
+
+        let field_gap = 20.0;
+        let half_width = (inner_width - field_gap) / 2.0;
         self.widgets.push(Box::new(
-            Input::new(640.0, 240.0, 230.0, "Search...")
-                .size(Size::Sm),
+            Input::new(field_x, input_y + 130.0, half_width, "Search...").size(Size::Sm),
         ));
-        
+
         let dropdown_idx = self.widgets.len();
         self.widgets.push(Box::new(
             Dropdown::new(
-                890.0,
-                240.0,
-                230.0,
+                field_x + half_width + field_gap,
+                input_y + 130.0,
+                half_width,
                 "Framework",
                 vec![
                     "Next.js".to_string(),
@@ -178,13 +246,13 @@ impl App {
             .size(Size::Sm),
         ));
         self.dropdown_indices.push(dropdown_idx);
-        
+
         let dropdown_idx = self.widgets.len();
         self.widgets.push(Box::new(
             Dropdown::new(
-                640.0,
-                290.0,
-                480.0,
+                field_x,
+                input_y + 185.0,
+                inner_width,
                 "Select a theme",
                 vec![
                     "Default".to_string(),
@@ -198,122 +266,208 @@ impl App {
         self.dropdown_indices.push(dropdown_idx);
 
         // Checkbox section
-        self.widgets.push(Box::new(Card::new(40.0, 380.0, 560.0, 180.0)));
+        let checkbox_height = 190.0;
+        let (checkbox_x, checkbox_y, checkbox_width) =
+            next_slot(Some(0), checkbox_height, !two_columns);
+        self.widgets.push(Box::new(Card::new(
+            checkbox_x,
+            checkbox_y,
+            checkbox_width,
+            checkbox_height,
+        )));
         self.widgets.push(Box::new(Label::new(
-            60.0,
-            400.0,
+            checkbox_x + 20.0,
+            checkbox_y + 20.0,
             "Checkbox & Selection",
             20.0,
             600,
-            Theme::FOREGROUND,
+            self.theme_colors.foreground,
         )));
 
         self.widgets.push(Box::new(Checkbox::new(
-            60.0,
-            440.0,
+            checkbox_x + 20.0,
+            checkbox_y + 70.0,
             "Accept terms and conditions",
         )));
         self.widgets.push(Box::new(Checkbox::new(
-            60.0,
-            480.0,
+            checkbox_x + 20.0,
+            checkbox_y + 105.0,
             "Enable notifications",
         )));
         self.widgets.push(Box::new(
-            Checkbox::new(60.0, 520.0, "Disabled option").disabled(true),
+            Checkbox::new(checkbox_x + 20.0, checkbox_y + 140.0, "Disabled option").disabled(true),
         ));
 
         // Badge section
-        self.widgets.push(Box::new(Card::new(620.0, 380.0, 540.0, 180.0)));
+        let badge_height = 180.0;
+        let (badge_x, badge_y, badge_width) = next_slot(Some(1), badge_height, !two_columns);
+        self.widgets
+            .push(Box::new(Card::new(badge_x, badge_y, badge_width, badge_height)));
         self.widgets.push(Box::new(Label::new(
-            640.0,
-            400.0,
+            badge_x + 20.0,
+            badge_y + 20.0,
             "Badges",
             20.0,
             600,
-            Theme::FOREGROUND,
+            self.theme_colors.foreground,
         )));
 
-        let mut badge_x = 640.0;
-        let badge_y = 440.0;
-        
+        let badge_inner_x = badge_x + 20.0;
+        let badge_inner_y = badge_y + 70.0;
+        let badge_gap = 16.0;
+        let badge_columns = if badge_width > 420.0 { 4 } else { 2 };
+        let cell_width =
+            (badge_width - 40.0 - badge_gap * (badge_columns as f32 - 1.0)) / badge_columns as f32;
+
+        let badge_variants = [
+            ("Default", Variant::Default),
+            ("Secondary", Variant::Secondary),
+            ("Outline", Variant::Outline),
+            ("Destructive", Variant::Destructive),
+        ];
+
+        for (index, (label, variant)) in badge_variants.iter().enumerate() {
+            let row = index / badge_columns;
+            let column = index % badge_columns;
+            let x = badge_inner_x + column as f32 * (cell_width + badge_gap);
+            let y = badge_inner_y + row as f32 * 40.0;
+            self.widgets
+                .push(Box::new(Badge::new(x, y, label).variant(*variant)));
+        }
+
+        // Skeleton section
+        let skeleton_height = 220.0;
+        let (skeleton_x, skeleton_y, skeleton_width) =
+            next_slot(Some(0), skeleton_height, !two_columns);
+        self.widgets.push(Box::new(Card::new(
+            skeleton_x,
+            skeleton_y,
+            skeleton_width,
+            skeleton_height,
+        )));
+        self.widgets.push(Box::new(Label::new(
+            skeleton_x + 20.0,
+            skeleton_y + 20.0,
+            "Skeletons & Pulse",
+            20.0,
+            600,
+            self.theme_colors.foreground,
+        )));
+
+        self.widgets.push(Box::new(Skeleton::new_circle(
+            skeleton_x + 20.0,
+            skeleton_y + 70.0,
+            64.0,
+        )));
+        let sk_inner_x = skeleton_x + 100.0;
+        let sk_inner_width = skeleton_width - 120.0;
         self.widgets.push(Box::new(
-            Badge::new(badge_x, badge_y, "Default").variant(Variant::Default),
+            Skeleton::new(sk_inner_x, skeleton_y + 70.0, sk_inner_width, 16.0)
+                .border_radius(Theme::RADIUS_SM),
         ));
-        badge_x += 90.0;
-        
         self.widgets.push(Box::new(
-            Badge::new(badge_x, badge_y, "Secondary").variant(Variant::Secondary),
+            Skeleton::new(sk_inner_x, skeleton_y + 96.0, sk_inner_width * 0.85, 16.0)
+                .border_radius(Theme::RADIUS_SM)
+                .pulse_speed(2.0),
         ));
-        badge_x += 110.0;
-        
         self.widgets.push(Box::new(
-            Badge::new(badge_x, badge_y, "Outline").variant(Variant::Outline),
+            Skeleton::new(sk_inner_x, skeleton_y + 122.0, sk_inner_width * 0.7, 16.0)
+                .border_radius(Theme::RADIUS_SM),
         ));
-        badge_x += 90.0;
-        
         self.widgets.push(Box::new(
-            Badge::new(badge_x, badge_y, "Destructive").variant(Variant::Destructive),
+            Skeleton::new(skeleton_x + 20.0, skeleton_y + 160.0, skeleton_width - 40.0, 28.0)
+                .border_radius(Theme::RADIUS_MD),
         ));
 
         // Progress section
-        self.widgets.push(Box::new(Card::new(40.0, 580.0, 1120.0, 220.0)));
+        let progress_height = 220.0;
+        let (progress_x, progress_y, progress_width) =
+            next_slot(Some(1), progress_height, !two_columns);
+        self.widgets.push(Box::new(Card::new(
+            progress_x,
+            progress_y,
+            progress_width,
+            progress_height,
+        )));
         self.widgets.push(Box::new(Label::new(
-            60.0,
-            600.0,
+            progress_x + 20.0,
+            progress_y + 20.0,
             "Progress Indicators",
             20.0,
             600,
-            Theme::FOREGROUND,
+            self.theme_colors.foreground,
         )));
 
-        let mut progress1 = ProgressBar::new(60.0, 640.0, 1040.0, 20.0)
-            .with_label("Uploading files... 45%");
-        progress1.set_progress(0.45);
-        self.widgets.push(Box::new(progress1));
+        let progress_inner_x = progress_x + 20.0;
+        let progress_inner_width = progress_width - 40.0;
+        let mut progress_y_cursor = progress_y + 70.0;
 
-        let mut progress2 = ProgressBar::new(60.0, 680.0, 1040.0, 20.0)
-            .with_label("Processing... 78%");
-        progress2.set_progress(0.78);
-        self.widgets.push(Box::new(progress2));
+        let mut progress_xs =
+            ProgressBar::new(progress_inner_x, progress_y_cursor, progress_inner_width)
+                .size(ProgressSize::Xs);
+        progress_xs.set_progress(0.35);
+        self.widgets.push(Box::new(progress_xs));
 
-        let mut progress3 = ProgressBar::new(60.0, 720.0, 1040.0, 20.0)
-            .with_label("Complete 100%");
-        progress3.set_progress(1.0);
-        self.widgets.push(Box::new(progress3));
+        progress_y_cursor += 18.0;
+        let mut progress_sm =
+            ProgressBar::new(progress_inner_x, progress_y_cursor, progress_inner_width)
+                .size(ProgressSize::Sm);
+        progress_sm.set_progress(0.55);
+        self.widgets.push(Box::new(progress_sm));
 
-        // Icons
-        self.widgets.push(Box::new(Icon::new(
-            60.0,
-            760.0,
-            LucideIcons::SEARCH,
-            IconSize::Medium,
-            Theme::FOREGROUND,
-        )));
-        self.widgets.push(Box::new(Icon::new(
-            110.0,
-            760.0,
-            LucideIcons::USER,
-            IconSize::Medium,
-            Theme::FOREGROUND,
-        )));
-        self.widgets.push(Box::new(Icon::new(
-            160.0,
-            760.0,
-            LucideIcons::SETTINGS,
-            IconSize::Medium,
-            Theme::FOREGROUND,
-        )));
-        self.widgets.push(Box::new(Icon::new(
-            210.0,
-            760.0,
-            LucideIcons::HEART,
-            IconSize::Medium,
-            Theme::ERROR,
-        )));
+        progress_y_cursor += 24.0;
+        let mut progress_md =
+            ProgressBar::new(progress_inner_x, progress_y_cursor, progress_inner_width)
+                .size(ProgressSize::Md);
+        progress_md.set_progress(0.68);
+        self.widgets.push(Box::new(progress_md));
 
-        // Context menu demo button
+        progress_y_cursor += 32.0;
+        let mut progress_lg =
+            ProgressBar::new(progress_inner_x, progress_y_cursor, progress_inner_width)
+                .size(ProgressSize::Lg)
+                .with_label("Uploading... 78%");
+        progress_lg.set_progress(0.78);
+        self.widgets.push(Box::new(progress_lg));
+
+        progress_y_cursor += 40.0;
+        let mut progress_xl =
+            ProgressBar::new(progress_inner_x, progress_y_cursor, progress_inner_width)
+                .size(ProgressSize::Xl)
+                .with_label("Complete 100%");
+        progress_xl.set_progress(1.0);
+        self.widgets.push(Box::new(progress_xl));
+
+        // Icons and context-menu demo row (full width)
+        let icons_row_height = if content_width < 600.0 { 120.0 } else { 80.0 };
+        let (row_x, row_y, row_width) = next_slot(None, icons_row_height, true);
+        let mut icon_x = row_x + 20.0;
+        let icon_y = row_y + 20.0;
+        for (icon, color) in [
+            (LucideIcons::SEARCH, self.theme_colors.foreground),
+            (LucideIcons::USER, self.theme_colors.foreground),
+            (LucideIcons::SETTINGS, self.theme_colors.foreground),
+            (LucideIcons::HEART, self.theme_colors.destructive),
+        ] {
+            self.widgets
+                .push(Box::new(Icon::new(icon_x, icon_y, icon, IconSize::Medium, color)));
+            icon_x += 50.0;
+        }
+
+        let button_width = 180.0;
+        let stack_button = row_width < 520.0;
+        let button_x = if stack_button {
+            row_x + 20.0
+        } else {
+            row_x + row_width - button_width - 20.0
+        };
         self.widgets.push(Box::new(
-            Button::new(1000.0, 760.0, 160.0, "Right Click Me")
+            Button::new(
+                button_x,
+                if stack_button { row_y + 60.0 } else { row_y + 18.0 },
+                button_width,
+                "Right Click Me",
+            )
                 .variant(Variant::Outline)
                 .size(Size::Sm),
         ));
@@ -339,8 +493,8 @@ impl App {
                 skia_safe::surfaces::raster_n32_premul((width as i32, height as i32)).unwrap();
             let canvas = skia_surface.canvas();
 
-            // shadcn/ui background color
-            canvas.clear(Theme::BACKGROUND);
+            // Dynamic theme background color
+            canvas.clear(self.theme_colors.background);
 
             let elapsed = self.start_time.elapsed().as_secs_f32();
             for widget in &mut self.widgets {
@@ -393,13 +547,15 @@ impl ApplicationHandler for App {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         if self.window.is_none() {
             let window_attributes = Window::default_attributes()
-                .with_title("Miko UI - skiacn/ui Design System")
+                .with_title("Miko UI - MikoUI Design System")
                 .with_inner_size(winit::dpi::LogicalSize::new(
                     WINDOW_WIDTH as i32,
                     WINDOW_HEIGHT as i32,
                 ));
 
             let window = Rc::new(event_loop.create_window(window_attributes).unwrap());
+            let inner = window.inner_size();
+            self.viewport_size = (inner.width as f32, inner.height as f32);
             let context = Context::new(window.clone()).unwrap();
             let surface = Surface::new(&context, window.clone()).unwrap();
 
@@ -422,6 +578,15 @@ impl ApplicationHandler for App {
             }
             WindowEvent::RedrawRequested => {
                 self.render();
+            }
+            WindowEvent::Resized(size) => {
+                if size.width > 0 && size.height > 0 {
+                    self.viewport_size = (size.width as f32, size.height as f32);
+                    self.build_ui();
+                    if let Some(window) = &self.window {
+                        window.request_redraw();
+                    }
+                }
             }
             WindowEvent::CursorMoved { position, .. } => {
                 self.mouse_pos = (position.x as f32, position.y as f32);
@@ -510,6 +675,15 @@ impl ApplicationHandler for App {
 
                 for (idx, widget) in self.widgets.iter_mut().enumerate() {
                     if widget.contains(self.mouse_pos.0, self.mouse_pos.1) {
+                        // Check if clicking theme toggle button
+                        if Some(idx) == self.theme_button_index {
+                            self.toggle_theme();
+                            if let Some(window) = &self.window {
+                                window.request_redraw();
+                            }
+                            return;
+                        }
+                        
                         widget.on_click();
 
                         // Track if this dropdown is now open

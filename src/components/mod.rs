@@ -12,6 +12,7 @@ mod dropdown;
 mod menubar;
 mod card;
 mod badge;
+mod skeleton;
 
 pub mod lucide;
 
@@ -22,7 +23,7 @@ pub use input::Input;
 pub use label::Label;
 pub use lucide::LucideIcons;
 pub use panel::Panel;
-pub use progress::ProgressBar;
+pub use progress::{ProgressBar, ProgressSize};
 pub use slider::Slider;
 pub use widget::Widget;
 pub use contextmenu::{ContextMenu, MenuItem};
@@ -30,3 +31,4 @@ pub use dropdown::Dropdown;
 pub use menubar::{MenuBar, MenuBarItem};
 pub use card::Card;
 pub use badge::Badge;
+pub use skeleton::Skeleton;

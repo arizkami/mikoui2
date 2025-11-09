@@ -1,7 +1,7 @@
 use skia_safe::{Canvas, Paint, Rect};
 
 use crate::components::Widget;
-use crate::theme::{with_alpha, Theme};
+use crate::theme::{get_theme_color, with_alpha, Theme};
 
 pub struct Card {
     x: f32,
@@ -29,10 +29,15 @@ impl Widget for Card {
     fn draw(&self, canvas: &Canvas, _font_manager: &mut crate::core::FontManager) {
         let border_radius = Theme::RADIUS_LG;
 
+        // Get colors from current theme
+        let card_color = get_theme_color(|t| t.card);
+        let border_color = get_theme_color(|t| t.border);
+        let bg_color = get_theme_color(|t| t.background);
+
         // Background
         let mut paint = Paint::default();
         paint.set_anti_alias(true);
-        paint.set_color(Theme::CARD);
+        paint.set_color(card_color);
 
         canvas.draw_round_rect(
             Rect::from_xywh(self.x, self.y, self.width, self.height),
@@ -45,7 +50,7 @@ impl Widget for Card {
         let mut border_paint = Paint::default();
         border_paint.set_anti_alias(true);
         border_paint.set_style(skia_safe::PaintStyle::Stroke);
-        border_paint.set_color(Theme::BORDER);
+        border_paint.set_color(border_color);
         border_paint.set_stroke_width(1.0);
 
         canvas.draw_round_rect(
@@ -65,7 +70,7 @@ impl Widget for Card {
             let shadow_opacity = self.hover_progress * 0.1;
             let mut shadow_paint = Paint::default();
             shadow_paint.set_anti_alias(true);
-            shadow_paint.set_color(with_alpha(Theme::BACKGROUND, (shadow_opacity * 255.0) as u8));
+            shadow_paint.set_color(with_alpha(bg_color, (shadow_opacity * 255.0) as u8));
             
             canvas.draw_round_rect(
                 Rect::from_xywh(self.x + 2.0, self.y + 2.0, self.width, self.height),

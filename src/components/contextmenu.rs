@@ -1,7 +1,7 @@
 use skia_safe::{Canvas, Color, Paint, Rect};
 use crate::components::Widget;
 use crate::core::FontManager;
-use crate::theme::Theme;
+use crate::theme::{current_theme, Theme};
 
 #[derive(Clone)]
 pub struct MenuItem {
@@ -147,6 +147,7 @@ impl Widget for ContextMenu {
         let total_height = self.total_height();
         let border_radius = Theme::RADIUS_MD;
         let padding = Theme::SPACE_1;
+        let colors = current_theme();
 
         // Draw shadow (shadcn style - subtle)
         let shadow_rect = Rect::from_xywh(self.x, self.y + 4.0, self.width, total_height);
@@ -158,13 +159,13 @@ impl Widget for ContextMenu {
         // Draw background (popover style)
         let bg_rect = Rect::from_xywh(self.x, self.y, self.width, total_height);
         let mut bg_paint = Paint::default();
-        bg_paint.set_color(Theme::POPOVER);
+        bg_paint.set_color(colors.popover);
         bg_paint.set_anti_alias(true);
         canvas.draw_round_rect(bg_rect, border_radius, border_radius, &bg_paint);
 
         // Draw border
         let mut border_paint = Paint::default();
-        border_paint.set_color(Theme::BORDER);
+        border_paint.set_color(colors.border);
         border_paint.set_style(skia_safe::PaintStyle::Stroke);
         border_paint.set_stroke_width(1.0);
         border_paint.set_anti_alias(true);
@@ -188,7 +189,7 @@ impl Widget for ContextMenu {
                 // Draw separator line (shadcn style)
                 let line_y = item_rect.top + item_rect.height() / 2.0;
                 let mut line_paint = Paint::default();
-                line_paint.set_color(Theme::BORDER);
+                line_paint.set_color(colors.border);
                 line_paint.set_stroke_width(1.0);
                 line_paint.set_anti_alias(true);
                 canvas.draw_line(
@@ -201,12 +202,8 @@ impl Widget for ContextMenu {
                 if self.hover_index == Some(i) && !item.disabled {
                     let alpha = (self.hover_progress[i] * 255.0) as u8;
                     let mut hover_paint = Paint::default();
-                    hover_paint.set_color(Color::from_argb(
-                        alpha,
-                        Theme::ACCENT.r(),
-                        Theme::ACCENT.g(),
-                        Theme::ACCENT.b(),
-                    ));
+                    let accent = colors.accent;
+                    hover_paint.set_color(Color::from_argb(alpha, accent.r(), accent.g(), accent.b()));
                     hover_paint.set_anti_alias(true);
                     canvas.draw_round_rect(
                         Rect::from_xywh(
@@ -223,9 +220,9 @@ impl Widget for ContextMenu {
 
                 // Draw text
                 let text_color = if item.disabled {
-                    Theme::MUTED_FOREGROUND
+                    colors.muted_foreground
                 } else {
-                    Theme::POPOVER_FOREGROUND
+                    colors.popover_foreground
                 };
 
                 let text_x = item_rect.left + Theme::SPACE_2;
@@ -243,7 +240,7 @@ impl Widget for ContextMenu {
                     let text_width = font.measure_str(shortcut, None).0;
                     let shortcut_x = item_rect.right - Theme::SPACE_2 - text_width;
                     let mut text_paint = Paint::default();
-                    text_paint.set_color(Theme::MUTED_FOREGROUND);
+                    text_paint.set_color(colors.muted_foreground);
                     text_paint.set_anti_alias(true);
                     canvas.draw_str(shortcut, (shortcut_x, text_y), &font, &text_paint);
                 }

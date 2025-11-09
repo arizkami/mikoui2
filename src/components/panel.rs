@@ -1,7 +1,7 @@
-use skia_safe::{Canvas, Color, Paint, Rect};
+use skia_safe::{Canvas, Paint, Rect};
 
 use crate::components::Widget;
-use crate::theme::{lerp_color, with_alpha, Theme};
+use crate::theme::{current_theme, with_alpha, Theme};
 
 pub struct Panel {
     x: f32,
@@ -35,11 +35,12 @@ impl Panel {
 impl Widget for Panel {
     fn draw(&self, canvas: &Canvas, font_manager: &mut crate::core::FontManager) {
         let border_radius = 8.0;
+        let colors = current_theme();
 
         // Background
         let mut bg_paint = Paint::default();
         bg_paint.set_anti_alias(true);
-        bg_paint.set_color(Theme::CARD);
+        bg_paint.set_color(colors.card);
         canvas.draw_round_rect(
             Rect::from_xywh(self.x, self.y, self.width, self.height),
             border_radius,
@@ -51,7 +52,7 @@ impl Widget for Panel {
         let mut border_paint = Paint::default();
         border_paint.set_anti_alias(true);
         border_paint.set_style(skia_safe::PaintStyle::Stroke);
-        border_paint.set_color(Theme::BORDER);
+        border_paint.set_color(colors.border);
         border_paint.set_stroke_width(1.0);
         canvas.draw_round_rect(
             Rect::from_xywh(
@@ -70,7 +71,7 @@ impl Widget for Panel {
             let shadow_opacity = self.hover_progress * 0.1;
             let mut shadow_paint = Paint::default();
             shadow_paint.set_anti_alias(true);
-            shadow_paint.set_color(with_alpha(Theme::BACKGROUND, (shadow_opacity * 255.0) as u8));
+            shadow_paint.set_color(with_alpha(colors.background, (shadow_opacity * 255.0) as u8));
             
             canvas.draw_round_rect(
                 Rect::from_xywh(self.x + 2.0, self.y + 2.0, self.width, self.height),
@@ -85,7 +86,7 @@ impl Widget for Panel {
             let font = font_manager.create_font(title, Theme::TEXT_SM, 600);
             let mut text_paint = Paint::default();
             text_paint.set_anti_alias(true);
-            text_paint.set_color(Theme::FOREGROUND);
+            text_paint.set_color(colors.foreground);
 
             canvas.draw_str(title, (self.x + Theme::SPACE_4, self.y + 28.0), &font, &text_paint);
         }

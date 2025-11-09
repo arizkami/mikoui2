@@ -1,7 +1,7 @@
 use skia_safe::{Canvas, Color, Paint, Rect};
 use crate::components::Widget;
 use crate::core::FontManager;
-use crate::theme::{with_alpha, Size, Theme};
+use crate::theme::{current_theme, with_alpha, Size, Theme};
 
 pub struct Dropdown {
     x: f32,
@@ -110,18 +110,19 @@ impl Dropdown {
 impl Widget for Dropdown {
     fn draw(&self, canvas: &Canvas, font_manager: &mut FontManager) {
         let button_rect = self.button_rect();
+        let colors = current_theme();
 
         // Draw button background
         let mut bg_paint = Paint::default();
-        bg_paint.set_color(Theme::BACKGROUND);
+        bg_paint.set_color(colors.background);
         bg_paint.set_anti_alias(true);
         canvas.draw_round_rect(button_rect, Theme::RADIUS_MD, Theme::RADIUS_MD, &bg_paint);
 
         // Draw border with focus ring
         let border_color = if self.open {
-            Theme::RING
+            colors.ring
         } else {
-            Theme::BORDER
+            colors.border
         };
 
         let mut border_paint = Paint::default();
@@ -144,7 +145,7 @@ impl Widget for Dropdown {
         // Focus ring when open
         if self.open {
             let mut ring_paint = Paint::default();
-            ring_paint.set_color(with_alpha(Theme::RING, 100));
+            ring_paint.set_color(with_alpha(colors.ring, 100));
             ring_paint.set_style(skia_safe::PaintStyle::Stroke);
             ring_paint.set_stroke_width(3.0);
             ring_paint.set_anti_alias(true);
@@ -169,7 +170,7 @@ impl Widget for Dropdown {
         
         let font = font_manager.create_font(self.selected_value(), font_size, 400);
         let mut text_paint = Paint::default();
-        text_paint.set_color(Theme::FOREGROUND);
+        text_paint.set_color(colors.foreground);
         text_paint.set_anti_alias(true);
         canvas.draw_str(self.selected_value(), (text_x, text_y), &font, &text_paint);
 
@@ -179,7 +180,7 @@ impl Widget for Dropdown {
         let arrow_size = 8.0;
         
         let mut arrow_paint = Paint::default();
-        arrow_paint.set_color(Theme::MUTED_FOREGROUND);
+        arrow_paint.set_color(colors.muted_foreground);
         arrow_paint.set_style(skia_safe::PaintStyle::Stroke);
         arrow_paint.set_stroke_width(2.0);
         arrow_paint.set_anti_alias(true);
@@ -206,19 +207,19 @@ impl Widget for Dropdown {
                 dropdown_rect.height(),
             );
             let mut shadow_paint = Paint::default();
-            shadow_paint.set_color(with_alpha(Theme::BACKGROUND, 30));
+            shadow_paint.set_color(with_alpha(colors.background, 30));
             shadow_paint.set_anti_alias(true);
             canvas.draw_round_rect(shadow_rect, Theme::RADIUS_MD, Theme::RADIUS_MD, &shadow_paint);
 
             // Draw background (popover style)
             let mut dropdown_bg = Paint::default();
-            dropdown_bg.set_color(Theme::POPOVER);
+            dropdown_bg.set_color(colors.popover);
             dropdown_bg.set_anti_alias(true);
             canvas.draw_round_rect(dropdown_rect, Theme::RADIUS_MD, Theme::RADIUS_MD, &dropdown_bg);
 
             // Draw border
             let mut dropdown_border = Paint::default();
-            dropdown_border.set_color(Theme::BORDER);
+            dropdown_border.set_color(colors.border);
             dropdown_border.set_style(skia_safe::PaintStyle::Stroke);
             dropdown_border.set_stroke_width(1.0);
             dropdown_border.set_anti_alias(true);
@@ -242,12 +243,9 @@ impl Widget for Dropdown {
                 if self.hover_option == Some(i) {
                     let alpha = (self.option_hover_progress[i] * 255.0) as u8;
                     let mut hover_paint = Paint::default();
-                    hover_paint.set_color(Color::from_argb(
-                        alpha,
-                        Theme::ACCENT.r(),
-                        Theme::ACCENT.g(),
-                        Theme::ACCENT.b(),
-                    ));
+                    let accent = colors.accent;
+                    hover_paint
+                        .set_color(Color::from_argb(alpha, accent.r(), accent.g(), accent.b()));
                     hover_paint.set_anti_alias(true);
                     canvas.draw_round_rect(
                         Rect::from_xywh(
@@ -268,7 +266,7 @@ impl Widget for Dropdown {
                     let check_y = option_rect.top + option_rect.height() / 2.0;
                     
                     let mut check_paint = Paint::default();
-                    check_paint.set_color(Theme::PRIMARY);
+                    check_paint.set_color(colors.primary);
                     check_paint.set_style(skia_safe::PaintStyle::Stroke);
                     check_paint.set_stroke_width(2.0);
                     check_paint.set_anti_alias(true);
@@ -283,7 +281,7 @@ impl Widget for Dropdown {
                 
                 let font = font_manager.create_font(option, Theme::TEXT_SM, 400);
                 let mut text_paint = Paint::default();
-                text_paint.set_color(Theme::POPOVER_FOREGROUND);
+                text_paint.set_color(colors.popover_foreground);
                 text_paint.set_anti_alias(true);
                 canvas.draw_str(option, (option_text_x, option_text_y), &font, &text_paint);
             }

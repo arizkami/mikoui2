@@ -1,7 +1,7 @@
-use skia_safe::{Canvas, Color, Paint, Rect};
+use skia_safe::{Canvas, Paint, Rect};
 
 use crate::components::Widget;
-use crate::theme::{lerp_color, with_alpha, Size, Theme};
+use crate::theme::{current_theme, lerp_color, with_alpha, Size, Theme};
 
 pub struct Input {
     x: f32,
@@ -260,9 +260,10 @@ impl Widget for Input {
         let border_radius = Theme::RADIUS_MD;
         let padding = self.size.padding_x();
         let font_size = self.size.font_size();
+        let colors = current_theme();
 
         // Background color
-        let base_bg = Theme::BACKGROUND;
+        let base_bg = colors.background;
         let current_bg = if self.disabled {
             with_alpha(base_bg, 128)
         } else {
@@ -283,11 +284,11 @@ impl Widget for Input {
 
         // Border color with focus ring
         let border_color = if self.disabled {
-            with_alpha(Theme::INPUT, 128)
+            with_alpha(colors.input, 128)
         } else if self.focus_progress > 0.0 {
-            lerp_color(Theme::INPUT, Theme::RING, self.focus_progress)
+            lerp_color(colors.input, colors.ring, self.focus_progress)
         } else {
-            Theme::INPUT
+            colors.input
         };
 
         let mut border_paint = Paint::default();
@@ -314,7 +315,7 @@ impl Widget for Input {
             let mut ring_paint = Paint::default();
             ring_paint.set_anti_alias(true);
             ring_paint.set_style(skia_safe::PaintStyle::Stroke);
-            ring_paint.set_color(with_alpha(Theme::RING, (ring_opacity * 255.0) as u8));
+            ring_paint.set_color(with_alpha(colors.ring, (ring_opacity * 255.0) as u8));
             ring_paint.set_stroke_width(3.0);
 
             canvas.draw_round_rect(
@@ -341,11 +342,11 @@ impl Widget for Input {
         let font = font_manager.create_font(display_text, font_size, font_weight);
 
         let text_color = if self.disabled {
-            with_alpha(Theme::MUTED_FOREGROUND, 128)
+            with_alpha(colors.muted_foreground, 128)
         } else if self.text.is_empty() {
-            Theme::MUTED_FOREGROUND
+            colors.muted_foreground
         } else {
-            Theme::FOREGROUND
+            colors.foreground
         };
 
         let mut text_paint = Paint::default();
@@ -374,7 +375,7 @@ impl Widget for Input {
                 // Draw selection background (shadcn style - primary color with opacity)
                 let mut selection_paint = Paint::default();
                 selection_paint.set_anti_alias(true);
-                selection_paint.set_color(with_alpha(Theme::PRIMARY, 80));
+                selection_paint.set_color(with_alpha(colors.primary, 80));
                 
                 canvas.draw_rect(
                     Rect::from_xywh(selection_x, selection_y, selected_width, selection_height),
@@ -398,7 +399,7 @@ impl Widget for Input {
 
             let mut cursor_paint = Paint::default();
             cursor_paint.set_anti_alias(true);
-            cursor_paint.set_color(Theme::FOREGROUND);
+            cursor_paint.set_color(colors.foreground);
             cursor_paint.set_stroke_width(1.5);
 
             let cursor_padding = Theme::SPACE_2;

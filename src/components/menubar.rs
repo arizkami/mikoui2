@@ -1,7 +1,7 @@
 use skia_safe::{Canvas, Color, Paint, Rect};
-use crate::components::{Widget, MenuItem};
+use crate::components::{MenuItem, Widget};
 use crate::core::FontManager;
-use crate::theme::Theme;
+use crate::theme::current_theme;
 
 pub struct MenuBarItem {
     pub label: String,
@@ -107,13 +107,14 @@ impl Widget for MenuBar {
         // Draw menubar background
         let bg_rect = Rect::from_xywh(self.x, self.y, self.width, self.height);
         let mut bg_paint = Paint::default();
-        bg_paint.set_color(Theme::CARD);
+        let colors = current_theme();
+        bg_paint.set_color(colors.card);
         bg_paint.set_anti_alias(true);
         canvas.draw_rect(bg_rect, &bg_paint);
 
         // Draw bottom border
         let mut border_paint = Paint::default();
-        border_paint.set_color(Theme::BORDER);
+        border_paint.set_color(colors.border);
         border_paint.set_stroke_width(1.0);
         canvas.draw_line(
             (self.x, self.y + self.height),
@@ -129,7 +130,8 @@ impl Widget for MenuBar {
             if self.active_menu == Some(i) || self.hover_menu == Some(i) {
                 let alpha = (self.hover_progress[i] * 50.0) as u8;
                 let mut hover_paint = Paint::default();
-                hover_paint.set_color(Color::from_argb(alpha, 255, 255, 255));
+                let accent = colors.accent;
+                hover_paint.set_color(Color::from_argb(alpha, accent.r(), accent.g(), accent.b()));
                 hover_paint.set_anti_alias(true);
                 canvas.draw_round_rect(
                     Rect::from_xywh(
@@ -151,7 +153,7 @@ impl Widget for MenuBar {
             let text_y = menu_rect.top + menu_rect.height() / 2.0 + 5.0;
             
             let mut text_paint = Paint::default();
-            text_paint.set_color(Theme::FOREGROUND);
+            text_paint.set_color(colors.foreground);
             text_paint.set_anti_alias(true);
             canvas.draw_str(&menu.label, (text_x, text_y), &font, &text_paint);
         }
@@ -175,13 +177,13 @@ impl Widget for MenuBar {
 
                 // Draw background
                 let mut dropdown_bg = Paint::default();
-                dropdown_bg.set_color(Theme::CARD);
+                dropdown_bg.set_color(colors.card);
                 dropdown_bg.set_anti_alias(true);
                 canvas.draw_round_rect(dropdown_rect, 6.0, 6.0, &dropdown_bg);
 
                 // Draw border
                 let mut dropdown_border = Paint::default();
-                dropdown_border.set_color(Theme::BORDER);
+                dropdown_border.set_color(colors.border);
                 dropdown_border.set_style(skia_safe::PaintStyle::Stroke);
                 dropdown_border.set_stroke_width(1.0);
                 dropdown_border.set_anti_alias(true);
@@ -195,7 +197,7 @@ impl Widget for MenuBar {
                         // Draw separator
                         let line_y = item_rect.top + item_rect.height() / 2.0;
                         let mut line_paint = Paint::default();
-                        line_paint.set_color(Theme::BORDER);
+                        line_paint.set_color(colors.border);
                         line_paint.set_stroke_width(1.0);
                         canvas.draw_line(
                             (item_rect.left + 8.0, line_y),
@@ -207,7 +209,8 @@ impl Widget for MenuBar {
                         if self.hover_item == Some(i) && !item.disabled {
                             let alpha = (self.item_hover_progress[i] * 255.0) as u8;
                             let mut hover_paint = Paint::default();
-                            hover_paint.set_color(Color::from_argb(alpha, 60, 120, 249));
+                            let accent = colors.accent;
+                            hover_paint.set_color(Color::from_argb(alpha, accent.r(), accent.g(), accent.b()));
                             hover_paint.set_anti_alias(true);
                             canvas.draw_round_rect(
                                 Rect::from_xywh(
@@ -224,9 +227,9 @@ impl Widget for MenuBar {
 
                         // Draw text
                         let text_color = if item.disabled {
-                            Theme::MUTED_FOREGROUND
+                            colors.muted_foreground
                         } else {
-                            Theme::FOREGROUND
+                            colors.foreground
                         };
 
                         let text_x = item_rect.left + 12.0;
@@ -244,7 +247,7 @@ impl Widget for MenuBar {
                             let text_width = font.measure_str(shortcut, None).0;
                             let shortcut_x = item_rect.right - 12.0 - text_width;
                             let mut text_paint = Paint::default();
-                            text_paint.set_color(Theme::MUTED_FOREGROUND);
+                            text_paint.set_color(colors.muted_foreground);
                             text_paint.set_anti_alias(true);
                             canvas.draw_str(shortcut, (shortcut_x, text_y), &font, &text_paint);
                         }

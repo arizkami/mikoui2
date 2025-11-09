@@ -8,8 +8,8 @@ name = "mikoui"
 path = "src/lib.rs"
 
 [[example]]
-name = "shadcn_demo"
-path = "examples/shadcn_demo.rs"
+name = "mikoui_example"
+path = "examples/main.rs"
 
 [dependencies]
 skia-safe = { version = "0.78", features = ["textlayout"] }

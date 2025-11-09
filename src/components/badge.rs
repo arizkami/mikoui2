@@ -1,7 +1,7 @@
 use skia_safe::{Canvas, Color, Paint, Rect};
 
 use crate::components::Widget;
-use crate::theme::{with_alpha, Theme, Variant};
+use crate::theme::{current_theme, Theme, Variant};
 
 pub struct Badge {
     x: f32,
@@ -41,19 +41,18 @@ impl Badge {
 impl Widget for Badge {
     fn draw(&self, canvas: &Canvas, font_manager: &mut crate::core::FontManager) {
         let border_radius = Theme::RADIUS_SM;
-        let padding_x = Theme::SPACE_2;
-        let padding_y = 2.0;
         let height = 22.0;
+        let colors = current_theme();
         
         let width = self.get_width(font_manager);
 
         // Colors based on variant
         let (bg_color, text_color, has_border) = match self.variant {
-            Variant::Default => (Theme::PRIMARY, Theme::PRIMARY_FOREGROUND, false),
-            Variant::Secondary => (Theme::SECONDARY, Theme::SECONDARY_FOREGROUND, false),
-            Variant::Destructive => (Theme::DESTRUCTIVE, Theme::DESTRUCTIVE_FOREGROUND, false),
-            Variant::Outline => (Color::TRANSPARENT, Theme::FOREGROUND, true),
-            _ => (Theme::SECONDARY, Theme::SECONDARY_FOREGROUND, false),
+            Variant::Default => (colors.primary, colors.primary_foreground, false),
+            Variant::Secondary => (colors.secondary, colors.secondary_foreground, false),
+            Variant::Destructive => (colors.destructive, colors.destructive_foreground, false),
+            Variant::Outline => (Color::TRANSPARENT, colors.foreground, true),
+            _ => (colors.secondary, colors.secondary_foreground, false),
         };
 
         // Background
@@ -75,7 +74,7 @@ impl Widget for Badge {
             let mut border_paint = Paint::default();
             border_paint.set_anti_alias(true);
             border_paint.set_style(skia_safe::PaintStyle::Stroke);
-            border_paint.set_color(Theme::BORDER);
+            border_paint.set_color(colors.border);
             border_paint.set_stroke_width(1.0);
 
             canvas.draw_round_rect(
@@ -104,7 +103,7 @@ impl Widget for Badge {
         canvas.draw_str(self.text, (text_x, text_y), &font, &text_paint);
     }
 
-    fn contains(&self, x: f32, y: f32) -> bool {
+    fn contains(&self, _x: f32, _y: f32) -> bool {
         false // Badges are typically not interactive
     }
 

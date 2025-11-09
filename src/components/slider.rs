@@ -1,7 +1,7 @@
-use skia_safe::{Canvas, Color, Paint, Rect};
+use skia_safe::{Canvas, Paint, Rect};
 
 use crate::components::Widget;
-use crate::theme::{with_alpha, Theme};
+use crate::theme::{current_theme, with_alpha, Theme};
 
 pub struct Slider {
     x: f32,
@@ -63,15 +63,16 @@ impl Widget for Slider {
         // Draw label
         let font = font_manager.create_font(self.label, Theme::TEXT_SM, 500);
         let mut text_paint = Paint::default();
+        let colors = current_theme();
         text_paint.set_anti_alias(true);
-        text_paint.set_color(Theme::FOREGROUND);
+        text_paint.set_color(colors.foreground);
         canvas.draw_str(self.label, (self.x, self.y + 12.0), &font, &text_paint);
 
         // Draw track background
         let track = self.track_rect();
         let mut track_paint = Paint::default();
         track_paint.set_anti_alias(true);
-        track_paint.set_color(Theme::SECONDARY);
+        track_paint.set_color(colors.secondary);
         canvas.draw_round_rect(track, 2.0, 2.0, &track_paint);
 
         // Draw filled track
@@ -79,7 +80,7 @@ impl Widget for Slider {
         if filled_width > 0.0 {
             let mut filled_paint = Paint::default();
             filled_paint.set_anti_alias(true);
-            filled_paint.set_color(Theme::PRIMARY);
+            filled_paint.set_color(colors.primary);
             canvas.draw_round_rect(
                 Rect::from_xywh(track.left(), track.top(), filled_width, track.height()),
                 2.0,
@@ -96,20 +97,20 @@ impl Widget for Slider {
         let shadow_opacity = if self.hover || self.dragging { 0.2 } else { 0.1 };
         let mut shadow_paint = Paint::default();
         shadow_paint.set_anti_alias(true);
-        shadow_paint.set_color(with_alpha(Theme::BACKGROUND, (shadow_opacity * 255.0) as u8));
+        shadow_paint.set_color(with_alpha(colors.background, (shadow_opacity * 255.0) as u8));
         canvas.draw_circle((thumb_x, thumb_y + 2.0), thumb_radius, &shadow_paint);
 
         // Thumb background
         let mut thumb_paint = Paint::default();
         thumb_paint.set_anti_alias(true);
-        thumb_paint.set_color(Theme::BACKGROUND);
+        thumb_paint.set_color(colors.background);
         canvas.draw_circle((thumb_x, thumb_y), thumb_radius, &thumb_paint);
 
         // Thumb border
         let mut border_paint = Paint::default();
         border_paint.set_anti_alias(true);
         border_paint.set_style(skia_safe::PaintStyle::Stroke);
-        border_paint.set_color(Theme::BORDER);
+        border_paint.set_color(colors.border);
         border_paint.set_stroke_width(2.0);
         canvas.draw_circle((thumb_x, thumb_y), thumb_radius - 1.0, &border_paint);
     }

@@ -1,7 +1,7 @@
 use skia_safe::{Canvas, Color, Paint, Rect};
 
 use crate::components::Widget;
-use crate::theme::{lerp_color, with_alpha, Size, Theme, Variant};
+use crate::theme::{current_theme, lerp_color, with_alpha, Size, Theme, Variant};
 
 pub struct Button {
     x: f32,
@@ -56,45 +56,45 @@ impl Button {
 impl Widget for Button {
     fn draw(&self, canvas: &Canvas, font_manager: &mut crate::core::FontManager) {
         let border_radius = Theme::RADIUS_MD;
-        let padding_x = self.size.padding_x();
         let font_size = self.size.font_size();
+        let colors = current_theme();
 
         // Get colors based on variant
         let (base_bg, hover_bg, text_color, has_border) = match self.variant {
             Variant::Default => (
-                Theme::PRIMARY,
-                with_alpha(Theme::PRIMARY, 230),
-                Theme::PRIMARY_FOREGROUND,
+                colors.primary,
+                with_alpha(colors.primary, 230),
+                colors.primary_foreground,
                 false,
             ),
             Variant::Destructive => (
-                Theme::DESTRUCTIVE,
-                with_alpha(Theme::DESTRUCTIVE, 230),
-                Theme::DESTRUCTIVE_FOREGROUND,
+                colors.destructive,
+                with_alpha(colors.destructive, 230),
+                colors.destructive_foreground,
                 false,
             ),
             Variant::Outline => (
                 Color::TRANSPARENT,
-                Theme::ACCENT,
-                Theme::ACCENT_FOREGROUND,
+                colors.accent,
+                colors.accent_foreground,
                 true,
             ),
             Variant::Secondary => (
-                Theme::SECONDARY,
-                with_alpha(Theme::SECONDARY, 200),
-                Theme::SECONDARY_FOREGROUND,
+                colors.secondary,
+                with_alpha(colors.secondary, 200),
+                colors.secondary_foreground,
                 false,
             ),
             Variant::Ghost => (
                 Color::TRANSPARENT,
-                Theme::ACCENT,
-                Theme::ACCENT_FOREGROUND,
+                colors.accent,
+                colors.accent_foreground,
                 false,
             ),
             Variant::Link => (
                 Color::TRANSPARENT,
                 Color::TRANSPARENT,
-                Theme::PRIMARY,
+                colors.primary,
                 false,
             ),
         };
@@ -137,9 +137,9 @@ impl Widget for Button {
         // Draw border for outline variant
         if has_border {
             let border_color = if self.disabled {
-                with_alpha(Theme::BORDER, 128)
+                with_alpha(colors.border, 128)
             } else {
-                Theme::BORDER
+                colors.border
             };
             
             let mut border_paint = Paint::default();

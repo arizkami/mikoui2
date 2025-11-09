@@ -1,7 +1,33 @@
-use skia_safe::{Canvas, Color, Paint, Rect};
+use skia_safe::{Canvas, Paint, Rect};
 
 use crate::components::Widget;
-use crate::theme::{with_alpha, Theme};
+use crate::theme::{current_theme, with_alpha, Theme};
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum ProgressSize {
+    Xs,     // 2px
+    Sm,     // 4px
+    Md,     // 8px
+    Lg,     // 12px
+    Xl,     // 16px
+}
+
+impl ProgressSize {
+    pub fn height(&self) -> f32 {
+        match self {
+            ProgressSize::Xs => 2.0,
+            ProgressSize::Sm => 4.0,
+            ProgressSize::Md => 8.0,
+            ProgressSize::Lg => 12.0,
+            ProgressSize::Xl => 16.0,
+        }
+    }
+    
+    pub fn show_label(&self) -> bool {
+        // Only show labels for larger sizes
+        matches!(self, ProgressSize::Lg | ProgressSize::Xl)
+    }
+}
 
 pub struct ProgressBar {
     x: f32,
@@ -12,20 +38,29 @@ pub struct ProgressBar {
     animated_progress: f32, // Smoothly animated progress
     label: Option<&'static str>,
     pulse_offset: f32,
+    size: ProgressSize,
 }
 
 impl ProgressBar {
-    pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
+    pub fn new(x: f32, y: f32, width: f32) -> Self {
+        let size = ProgressSize::Md;
         Self {
             x,
             y,
             width,
-            height,
+            height: size.height(),
             progress: 0.0,
             animated_progress: 0.0,
             label: None,
             pulse_offset: 0.0,
+            size,
         }
+    }
+    
+    pub fn size(mut self, size: ProgressSize) -> Self {
+        self.size = size;
+        self.height = size.height();
+        self
     }
 
     pub fn with_label(mut self, label: &'static str) -> Self {
@@ -45,11 +80,12 @@ impl ProgressBar {
 impl Widget for ProgressBar {
     fn draw(&self, canvas: &Canvas, font_manager: &mut crate::core::FontManager) {
         let border_radius = self.height / 2.0;
+        let colors = current_theme();
 
         // Draw background
         let mut bg_paint = Paint::default();
         bg_paint.set_anti_alias(true);
-        bg_paint.set_color(Theme::SECONDARY);
+        bg_paint.set_color(colors.secondary);
         canvas.draw_round_rect(
             Rect::from_xywh(self.x, self.y, self.width, self.height),
             border_radius,
@@ -63,7 +99,7 @@ impl Widget for ProgressBar {
             // Main progress bar
             let mut progress_paint = Paint::default();
             progress_paint.set_anti_alias(true);
-            progress_paint.set_color(Theme::PRIMARY);
+            progress_paint.set_color(colors.primary);
             canvas.draw_round_rect(
                 Rect::from_xywh(self.x, self.y, filled_width, self.height),
                 border_radius,
@@ -78,7 +114,7 @@ impl Widget for ProgressBar {
             if pulse_x > self.x && pulse_x < self.x + filled_width {
                 let mut shine_paint = Paint::default();
                 shine_paint.set_anti_alias(true);
-                shine_paint.set_color(with_alpha(Theme::PRIMARY_FOREGROUND, 40));
+                shine_paint.set_color(with_alpha(colors.primary_foreground, 40));
                 
                 let shine_rect = Rect::from_xywh(
                     pulse_x.max(self.x),
@@ -90,19 +126,21 @@ impl Widget for ProgressBar {
             }
         }
 
-        // Draw label if present
+        // Draw label if present and size allows
         if let Some(label) = self.label {
-            let font = font_manager.create_font(label, Theme::TEXT_XS, 500);
-            
-            let (text_width, _) = font.measure_str(label, None);
-            let text_x = self.x + (self.width - text_width) / 2.0;
-            let text_y = self.y + self.height / 2.0 + 4.0;
+            if self.size.show_label() {
+                let font = font_manager.create_font(label, Theme::TEXT_XS, 500);
+                
+                let (text_width, _) = font.measure_str(label, None);
+                let text_x = self.x + (self.width - text_width) / 2.0;
+                let text_y = self.y + self.height / 2.0 + 4.0;
 
-            // Text
-            let mut text_paint = Paint::default();
-            text_paint.set_anti_alias(true);
-            text_paint.set_color(Theme::FOREGROUND);
-            canvas.draw_str(label, (text_x, text_y), &font, &text_paint);
+                // Text
+                let mut text_paint = Paint::default();
+                text_paint.set_anti_alias(true);
+                text_paint.set_color(colors.foreground);
+                canvas.draw_str(label, (text_x, text_y), &font, &text_paint);
+            }
         }
     }
 

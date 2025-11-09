@@ -1,7 +1,7 @@
-use skia_safe::{Canvas, Color, Paint, Rect};
+use skia_safe::{Canvas, Paint, Rect};
 
 use crate::components::Widget;
-use crate::theme::{lerp_color, with_alpha, Theme};
+use crate::theme::{current_theme, lerp_color, with_alpha, Theme};
 
 pub struct Checkbox {
     x: f32,
@@ -51,6 +51,7 @@ impl Checkbox {
 impl Widget for Checkbox {
     fn draw(&self, canvas: &Canvas, font_manager: &mut crate::core::FontManager) {
         let border_radius = Theme::RADIUS_SM;
+        let colors = current_theme();
 
         // Animated scale
         let scale = 1.0 - (self.active_progress * 0.05);
@@ -62,11 +63,11 @@ impl Widget for Checkbox {
 
         // Background color (shadcn style - checked state uses primary)
         let bg_color = if self.disabled {
-            with_alpha(Theme::MUTED, 128)
+            with_alpha(colors.muted, 128)
         } else if self.check_progress > 0.0 {
-            lerp_color(Theme::BACKGROUND, Theme::PRIMARY, self.check_progress)
+            lerp_color(colors.background, colors.primary, self.check_progress)
         } else {
-            Theme::BACKGROUND
+            colors.background
         };
 
         // Background
@@ -83,11 +84,11 @@ impl Widget for Checkbox {
 
         // Border
         let border_color = if self.disabled {
-            with_alpha(Theme::BORDER, 128)
+            with_alpha(colors.border, 128)
         } else if self.check_progress > 0.0 {
-            lerp_color(Theme::BORDER, Theme::PRIMARY, self.check_progress)
+            lerp_color(colors.border, colors.primary, self.check_progress)
         } else {
-            Theme::BORDER
+            colors.border
         };
 
         let mut border_paint = Paint::default();
@@ -111,9 +112,9 @@ impl Widget for Checkbox {
         // Checkmark (shadcn style - simple check)
         if self.check_progress > 0.0 {
             let check_color = if self.disabled {
-                with_alpha(Theme::PRIMARY_FOREGROUND, 128)
+                with_alpha(colors.primary_foreground, 128)
             } else {
-                Theme::PRIMARY_FOREGROUND
+                colors.primary_foreground
             };
             
             let mut check_paint = Paint::default();
@@ -153,9 +154,9 @@ impl Widget for Checkbox {
         // Label
         let font = font_manager.create_font(self.label, Theme::TEXT_SM, 400);
         let text_color = if self.disabled {
-            with_alpha(Theme::FOREGROUND, 128)
+            with_alpha(colors.foreground, 128)
         } else {
-            Theme::FOREGROUND
+            colors.foreground
         };
         
         let mut text_paint = Paint::default();
