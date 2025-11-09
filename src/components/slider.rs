@@ -1,7 +1,7 @@
-use skia_safe::{Canvas, Color, Font, Paint, Rect};
+use skia_safe::{Canvas, Color, Paint, Rect};
 
 use crate::components::Widget;
-use crate::theme::{lerp_color, ZedTheme};
+use crate::theme::{with_alpha, Theme};
 
 pub struct Slider {
     x: f32,
@@ -61,17 +61,17 @@ impl Slider {
 impl Widget for Slider {
     fn draw(&self, canvas: &Canvas, font_manager: &mut crate::core::FontManager) {
         // Draw label
-        let font = font_manager.create_font(self.label, 12.0, 400);
+        let font = font_manager.create_font(self.label, Theme::TEXT_SM, 500);
         let mut text_paint = Paint::default();
         text_paint.set_anti_alias(true);
-        text_paint.set_color(ZedTheme::TEXT);
+        text_paint.set_color(Theme::FOREGROUND);
         canvas.draw_str(self.label, (self.x, self.y + 12.0), &font, &text_paint);
 
         // Draw track background
         let track = self.track_rect();
         let mut track_paint = Paint::default();
         track_paint.set_anti_alias(true);
-        track_paint.set_color(ZedTheme::SURFACE);
+        track_paint.set_color(Theme::SECONDARY);
         canvas.draw_round_rect(track, 2.0, 2.0, &track_paint);
 
         // Draw filled track
@@ -79,7 +79,7 @@ impl Widget for Slider {
         if filled_width > 0.0 {
             let mut filled_paint = Paint::default();
             filled_paint.set_anti_alias(true);
-            filled_paint.set_color(ZedTheme::PRIMARY);
+            filled_paint.set_color(Theme::PRIMARY);
             canvas.draw_round_rect(
                 Rect::from_xywh(track.left(), track.top(), filled_width, track.height()),
                 2.0,
@@ -90,34 +90,26 @@ impl Widget for Slider {
 
         // Draw thumb
         let (thumb_x, thumb_y) = self.thumb_center();
-        let thumb_radius = if self.hover || self.dragging { 8.0 } else { 6.0 };
+        let thumb_radius = if self.hover || self.dragging { 10.0 } else { 8.0 };
 
         // Thumb shadow
-        let shadow_opacity = if self.hover || self.dragging { 0.3 } else { 0.15 };
+        let shadow_opacity = if self.hover || self.dragging { 0.2 } else { 0.1 };
         let mut shadow_paint = Paint::default();
         shadow_paint.set_anti_alias(true);
-        shadow_paint.set_color(Color::from_argb((shadow_opacity * 255.0) as u8, 0, 0, 0));
+        shadow_paint.set_color(with_alpha(Theme::BACKGROUND, (shadow_opacity * 255.0) as u8));
         canvas.draw_circle((thumb_x, thumb_y + 2.0), thumb_radius, &shadow_paint);
 
         // Thumb background
-        let thumb_color = if self.dragging {
-            ZedTheme::PRIMARY_ACTIVE
-        } else if self.hover {
-            ZedTheme::PRIMARY_HOVER
-        } else {
-            ZedTheme::PRIMARY
-        };
-
         let mut thumb_paint = Paint::default();
         thumb_paint.set_anti_alias(true);
-        thumb_paint.set_color(thumb_color);
+        thumb_paint.set_color(Theme::BACKGROUND);
         canvas.draw_circle((thumb_x, thumb_y), thumb_radius, &thumb_paint);
 
         // Thumb border
         let mut border_paint = Paint::default();
         border_paint.set_anti_alias(true);
         border_paint.set_style(skia_safe::PaintStyle::Stroke);
-        border_paint.set_color(Color::WHITE);
+        border_paint.set_color(Theme::BORDER);
         border_paint.set_stroke_width(2.0);
         canvas.draw_circle((thumb_x, thumb_y), thumb_radius - 1.0, &border_paint);
     }

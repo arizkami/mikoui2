@@ -1,7 +1,7 @@
-use skia_safe::{Canvas, Color, Font, Paint, Rect};
+use skia_safe::{Canvas, Color, Paint, Rect};
 
 use crate::components::Widget;
-use crate::theme::{lerp_color, ZedTheme};
+use crate::theme::{lerp_color, with_alpha, Theme};
 
 pub struct Checkbox {
     x: f32,
@@ -14,6 +14,7 @@ pub struct Checkbox {
     check_progress: f32,
     active: bool,
     active_progress: f32,
+    disabled: bool,
 }
 
 impl Checkbox {
@@ -21,7 +22,7 @@ impl Checkbox {
         Self {
             x,
             y,
-            size: 18.0,
+            size: 20.0,
             label,
             checked: false,
             hover: false,
@@ -29,6 +30,7 @@ impl Checkbox {
             check_progress: 0.0,
             active: false,
             active_progress: 0.0,
+            disabled: false,
         }
     }
 
@@ -39,11 +41,16 @@ impl Checkbox {
     pub fn set_checked(&mut self, checked: bool) {
         self.checked = checked;
     }
+    
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
+        self
+    }
 }
 
 impl Widget for Checkbox {
     fn draw(&self, canvas: &Canvas, font_manager: &mut crate::core::FontManager) {
-        let border_radius = 4.0;
+        let border_radius = Theme::RADIUS_SM;
 
         // Animated scale
         let scale = 1.0 - (self.active_progress * 0.05);
@@ -53,37 +60,19 @@ impl Widget for Checkbox {
         let scaled_x = center_x - scaled_size / 2.0;
         let scaled_y = center_y - scaled_size / 2.0;
 
-        // Animated background color
-        let bg_base = ZedTheme::INPUT_BG;
-        let bg_hover = ZedTheme::INPUT_HOVER;
-        let bg_checked = ZedTheme::PRIMARY;
-
-        let mut current_bg = bg_base;
-        if self.hover_progress > 0.0 && !self.checked {
-            current_bg = lerp_color(current_bg, bg_hover, self.hover_progress);
-        }
-        if self.check_progress > 0.0 {
-            current_bg = lerp_color(current_bg, bg_checked, self.check_progress);
-        }
-
-        // Draw shadow on hover
-        let shadow_opacity = self.hover_progress * 0.15;
-        if shadow_opacity > 0.0 {
-            let mut shadow_paint = Paint::default();
-            shadow_paint.set_anti_alias(true);
-            shadow_paint.set_color(Color::from_argb((shadow_opacity * 255.0) as u8, 0, 0, 0));
-            canvas.draw_round_rect(
-                Rect::from_xywh(scaled_x + 1.0, scaled_y + 1.0, scaled_size, scaled_size),
-                border_radius,
-                border_radius,
-                &shadow_paint,
-            );
-        }
+        // Background color (shadcn style - checked state uses primary)
+        let bg_color = if self.disabled {
+            with_alpha(Theme::MUTED, 128)
+        } else if self.check_progress > 0.0 {
+            lerp_color(Theme::BACKGROUND, Theme::PRIMARY, self.check_progress)
+        } else {
+            Theme::BACKGROUND
+        };
 
         // Background
         let mut paint = Paint::default();
         paint.set_anti_alias(true);
-        paint.set_color(current_bg);
+        paint.set_color(bg_color);
 
         canvas.draw_round_rect(
             Rect::from_xywh(scaled_x, scaled_y, scaled_size, scaled_size),
@@ -92,68 +81,67 @@ impl Widget for Checkbox {
             &paint,
         );
 
-        // Animated border
-        let border_base = ZedTheme::BORDER;
-        let border_hover = ZedTheme::BORDER_FOCUS;
-        let border_checked = ZedTheme::PRIMARY;
-
-        let mut current_border = border_base;
-        if self.hover_progress > 0.0 && self.check_progress < 0.5 {
-            current_border = lerp_color(current_border, border_hover, self.hover_progress);
-        }
-        if self.check_progress > 0.0 {
-            current_border = lerp_color(current_border, border_checked, self.check_progress);
-        }
+        // Border
+        let border_color = if self.disabled {
+            with_alpha(Theme::BORDER, 128)
+        } else if self.check_progress > 0.0 {
+            lerp_color(Theme::BORDER, Theme::PRIMARY, self.check_progress)
+        } else {
+            Theme::BORDER
+        };
 
         let mut border_paint = Paint::default();
         border_paint.set_anti_alias(true);
         border_paint.set_style(skia_safe::PaintStyle::Stroke);
-        border_paint.set_color(current_border);
-        border_paint.set_stroke_width(1.0);
+        border_paint.set_color(border_color);
+        border_paint.set_stroke_width(1.5);
 
         canvas.draw_round_rect(
             Rect::from_xywh(
-                scaled_x + 0.5,
-                scaled_y + 0.5,
-                scaled_size - 1.0,
-                scaled_size - 1.0,
+                scaled_x + 0.75,
+                scaled_y + 0.75,
+                scaled_size - 1.5,
+                scaled_size - 1.5,
             ),
             border_radius,
             border_radius,
             &border_paint,
         );
 
-        // Animated checkmark
+        // Checkmark (shadcn style - simple check)
         if self.check_progress > 0.0 {
+            let check_color = if self.disabled {
+                with_alpha(Theme::PRIMARY_FOREGROUND, 128)
+            } else {
+                Theme::PRIMARY_FOREGROUND
+            };
+            
             let mut check_paint = Paint::default();
             check_paint.set_anti_alias(true);
             check_paint.set_style(skia_safe::PaintStyle::Stroke);
-            check_paint.set_color(Color::from_argb(
-                (self.check_progress * 255.0) as u8,
-                255,
-                255,
-                255,
-            ));
-            check_paint.set_stroke_width(1.5 * self.check_progress);
+            check_paint.set_color(with_alpha(check_color, (self.check_progress * 255.0) as u8));
+            check_paint.set_stroke_width(2.0);
             check_paint.set_stroke_cap(skia_safe::PaintCap::Round);
+            check_paint.set_stroke_join(skia_safe::PaintJoin::Round);
 
-            // Animated checkmark drawing
+            // Animated checkmark
             let progress = self.check_progress;
-            let x_base = scaled_x + (4.0 * scale);
-            let y_base = scaled_y + (9.0 * scale);
+            let padding = 4.0;
+            let x_base = scaled_x + padding;
+            let y_base = scaled_y + scaled_size / 2.0;
 
-            // First line (animated)
-            let line1_end_x = x_base + (3.0 * scale * progress.min(0.5) * 2.0);
-            let line1_end_y = y_base + (3.0 * scale * progress.min(0.5) * 2.0);
+            // First line (down-right)
+            let line1_end_x = x_base + (4.0 * progress.min(0.5) * 2.0);
+            let line1_end_y = y_base + (4.0 * progress.min(0.5) * 2.0);
             canvas.draw_line((x_base, y_base), (line1_end_x, line1_end_y), &check_paint);
 
-            // Second line (animated after first)
+            // Second line (up-right)
             if progress > 0.5 {
                 let line2_progress = (progress - 0.5) * 2.0;
-                let line2_start_x = x_base + (3.0 * scale);
-                let line2_start_y = y_base + (3.0 * scale);
-                let line2_end_x = line2_start_x + (7.0 * scale * line2_progress);
-                let line2_end_y = line2_start_y - (6.0 * scale * line2_progress);
+                let line2_start_x = x_base + 4.0;
+                let line2_start_y = y_base + 4.0;
+                let line2_end_x = line2_start_x + (8.0 * line2_progress);
+                let line2_end_y = line2_start_y - (8.0 * line2_progress);
                 canvas.draw_line(
                     (line2_start_x, line2_start_y),
                     (line2_end_x, line2_end_y),
@@ -162,21 +150,21 @@ impl Widget for Checkbox {
             }
         }
 
-        // Animated label
-        let font = font_manager.create_font(self.label, 13.0, 400);
-        let label_alpha = 1.0 - (self.active_progress * 0.2);
+        // Label
+        let font = font_manager.create_font(self.label, Theme::TEXT_SM, 400);
+        let text_color = if self.disabled {
+            with_alpha(Theme::FOREGROUND, 128)
+        } else {
+            Theme::FOREGROUND
+        };
+        
         let mut text_paint = Paint::default();
         text_paint.set_anti_alias(true);
-        text_paint.set_color(Color::from_argb(
-            (label_alpha * 255.0) as u8,
-            ZedTheme::TEXT.r(),
-            ZedTheme::TEXT.g(),
-            ZedTheme::TEXT.b(),
-        ));
+        text_paint.set_color(text_color);
 
         canvas.draw_str(
             self.label,
-            (self.x + 28.0, self.y + 13.0),
+            (self.x + self.size + Theme::SPACE_2, self.y + self.size / 2.0 + 5.0),
             &font,
             &text_paint,
         );
@@ -224,9 +212,11 @@ impl Widget for Checkbox {
     }
 
     fn on_click(&mut self) {
-        self.checked = !self.checked;
-        self.active = true;
-        println!("Checkbox toggled: {}", self.checked);
+        if !self.disabled {
+            self.checked = !self.checked;
+            self.active = true;
+            println!("Checkbox toggled: {}", self.checked);
+        }
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

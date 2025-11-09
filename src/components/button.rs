@@ -1,13 +1,7 @@
-use skia_safe::{Canvas, Color, Font, Paint, Rect};
+use skia_safe::{Canvas, Color, Paint, Rect};
 
 use crate::components::Widget;
-use crate::theme::{lerp_color, ZedTheme};
-
-#[derive(Clone, Copy)]
-pub enum ButtonStyle {
-    Primary,
-    Secondary,
-}
+use crate::theme::{lerp_color, with_alpha, Size, Theme, Variant};
 
 pub struct Button {
     x: f32,
@@ -15,88 +9,109 @@ pub struct Button {
     width: f32,
     height: f32,
     text: &'static str,
-    style: ButtonStyle,
+    variant: Variant,
+    size: Size,
     hover: bool,
     active: bool,
     hover_progress: f32,
     active_progress: f32,
+    disabled: bool,
 }
 
 impl Button {
-    pub fn new(
-        x: f32,
-        y: f32,
-        width: f32,
-        height: f32,
-        text: &'static str,
-        style: ButtonStyle,
-    ) -> Self {
+    pub fn new(x: f32, y: f32, width: f32, text: &'static str) -> Self {
         Self {
             x,
             y,
             width,
-            height,
+            height: Size::Md.height(),
             text,
-            style,
+            variant: Variant::Default,
+            size: Size::Md,
             hover: false,
             active: false,
             hover_progress: 0.0,
             active_progress: 0.0,
+            disabled: false,
         }
+    }
+    
+    pub fn variant(mut self, variant: Variant) -> Self {
+        self.variant = variant;
+        self
+    }
+    
+    pub fn size(mut self, size: Size) -> Self {
+        self.size = size;
+        self.height = size.height();
+        self
+    }
+    
+    pub fn disabled(mut self, disabled: bool) -> Self {
+        self.disabled = disabled;
+        self
     }
 }
 
 impl Widget for Button {
     fn draw(&self, canvas: &Canvas, font_manager: &mut crate::core::FontManager) {
-        let border_radius = 6.0;
+        let border_radius = Theme::RADIUS_MD;
+        let padding_x = self.size.padding_x();
+        let font_size = self.size.font_size();
 
-        // Define colors based on style
-        let (base_color, hover_color, active_color, text_color) = match self.style {
-            ButtonStyle::Primary => (
-                ZedTheme::PRIMARY,
-                ZedTheme::PRIMARY_HOVER,
-                ZedTheme::PRIMARY_ACTIVE,
-                Color::WHITE,
+        // Get colors based on variant
+        let (base_bg, hover_bg, text_color, has_border) = match self.variant {
+            Variant::Default => (
+                Theme::PRIMARY,
+                with_alpha(Theme::PRIMARY, 230),
+                Theme::PRIMARY_FOREGROUND,
+                false,
             ),
-            ButtonStyle::Secondary => (
-                ZedTheme::SURFACE,
-                ZedTheme::INPUT_HOVER,
-                ZedTheme::ELEVATED,
-                ZedTheme::TEXT,
+            Variant::Destructive => (
+                Theme::DESTRUCTIVE,
+                with_alpha(Theme::DESTRUCTIVE, 230),
+                Theme::DESTRUCTIVE_FOREGROUND,
+                false,
+            ),
+            Variant::Outline => (
+                Color::TRANSPARENT,
+                Theme::ACCENT,
+                Theme::ACCENT_FOREGROUND,
+                true,
+            ),
+            Variant::Secondary => (
+                Theme::SECONDARY,
+                with_alpha(Theme::SECONDARY, 200),
+                Theme::SECONDARY_FOREGROUND,
+                false,
+            ),
+            Variant::Ghost => (
+                Color::TRANSPARENT,
+                Theme::ACCENT,
+                Theme::ACCENT_FOREGROUND,
+                false,
+            ),
+            Variant::Link => (
+                Color::TRANSPARENT,
+                Color::TRANSPARENT,
+                Theme::PRIMARY,
+                false,
             ),
         };
 
-        // Interpolate colors
-        let mut current_bg = base_color;
-        if self.hover_progress > 0.0 {
-            current_bg = lerp_color(current_bg, hover_color, self.hover_progress);
-        }
-        if self.active_progress > 0.0 {
-            current_bg = lerp_color(current_bg, active_color, self.active_progress);
-        }
+        // Apply disabled state
+        let (current_bg, current_text) = if self.disabled {
+            (with_alpha(base_bg, 128), with_alpha(text_color, 128))
+        } else {
+            let bg = if self.hover_progress > 0.0 {
+                lerp_color(base_bg, hover_bg, self.hover_progress)
+            } else {
+                base_bg
+            };
+            (bg, text_color)
+        };
 
-        // Draw shadow
-        let shadow_opacity = (self.hover_progress * 0.15) + (self.active_progress * 0.1);
-        if shadow_opacity > 0.0 {
-            let shadow_offset_y = 2.0 + (self.hover_progress * 2.0) - (self.active_progress * 1.0);
-            let mut shadow_paint = Paint::default();
-            shadow_paint.set_anti_alias(true);
-            shadow_paint.set_color(Color::from_argb(
-                (shadow_opacity * 255.0) as u8,
-                0,
-                0,
-                0,
-            ));
-
-            canvas.draw_round_rect(
-                Rect::from_xywh(self.x + 1.0, self.y + shadow_offset_y, self.width, self.height),
-                border_radius,
-                border_radius,
-                &shadow_paint,
-            );
-        }
-
-        // Animated scale
+        // Animated scale on press
         let scale = 1.0 - (self.active_progress * 0.02);
         let center_x = self.x + self.width / 2.0;
         let center_y = self.y + self.height / 2.0;
@@ -106,27 +121,31 @@ impl Widget for Button {
         let scaled_y = center_y - scaled_height / 2.0;
 
         // Draw background
-        let mut paint = Paint::default();
-        paint.set_anti_alias(true);
-        paint.set_color(current_bg);
+        if current_bg != Color::TRANSPARENT {
+            let mut paint = Paint::default();
+            paint.set_anti_alias(true);
+            paint.set_color(current_bg);
 
-        canvas.draw_round_rect(
-            Rect::from_xywh(scaled_x, scaled_y, scaled_width, scaled_height),
-            border_radius,
-            border_radius,
-            &paint,
-        );
+            canvas.draw_round_rect(
+                Rect::from_xywh(scaled_x, scaled_y, scaled_width, scaled_height),
+                border_radius,
+                border_radius,
+                &paint,
+            );
+        }
 
-        // Draw border for secondary
-        if matches!(self.style, ButtonStyle::Secondary) {
-            let border_base = ZedTheme::BORDER;
-            let border_hover = ZedTheme::BORDER_FOCUS;
-            let current_border = lerp_color(border_base, border_hover, self.hover_progress);
-
+        // Draw border for outline variant
+        if has_border {
+            let border_color = if self.disabled {
+                with_alpha(Theme::BORDER, 128)
+            } else {
+                Theme::BORDER
+            };
+            
             let mut border_paint = Paint::default();
             border_paint.set_anti_alias(true);
             border_paint.set_style(skia_safe::PaintStyle::Stroke);
-            border_paint.set_color(current_border);
+            border_paint.set_color(border_color);
             border_paint.set_stroke_width(1.0);
 
             canvas.draw_round_rect(
@@ -143,20 +162,37 @@ impl Widget for Button {
         }
 
         // Draw text
-        let font_weight = if matches!(self.style, ButtonStyle::Primary) {
-            500
-        } else {
-            450
+        let font_weight = match self.variant {
+            Variant::Default | Variant::Destructive => 500,
+            _ => 450,
         };
-        let font = font_manager.create_font(self.text, 13.0, font_weight);
+        let font = font_manager.create_font(self.text, font_size, font_weight);
 
         let mut text_paint = Paint::default();
         text_paint.set_anti_alias(true);
-        text_paint.set_color(text_color);
+        text_paint.set_color(current_text);
+
+        // Underline for link variant on hover
+        if matches!(self.variant, Variant::Link) && self.hover_progress > 0.5 {
+            let (text_width, _) = font.measure_str(self.text, Some(&text_paint));
+            let text_x = scaled_x + (scaled_width - text_width) / 2.0;
+            let underline_y = scaled_y + scaled_height / 2.0 + 8.0;
+            
+            let mut underline_paint = Paint::default();
+            underline_paint.set_anti_alias(true);
+            underline_paint.set_color(current_text);
+            underline_paint.set_stroke_width(1.0);
+            
+            canvas.draw_line(
+                (text_x, underline_y),
+                (text_x + text_width, underline_y),
+                &underline_paint,
+            );
+        }
 
         let (text_width, _) = font.measure_str(self.text, Some(&text_paint));
         let text_x = scaled_x + (scaled_width - text_width) / 2.0;
-        let text_y = scaled_y + scaled_height / 2.0 + 4.0;
+        let text_y = scaled_y + scaled_height / 2.0 + (font_size * 0.3);
 
         canvas.draw_str(self.text, (text_x, text_y), &font, &text_paint);
     }
@@ -180,18 +216,24 @@ impl Widget for Button {
             self.hover_progress = target_hover;
         }
 
-        // Active animation
+        // Active animation - automatically reset after reaching peak
         let target_active = if self.active { 1.0 } else { 0.0 };
         if (self.active_progress - target_active).abs() > 0.01 {
             self.active_progress += (target_active - self.active_progress) * (animation_speed * 2.0);
         } else {
             self.active_progress = target_active;
+            // Reset active state after animation completes
+            if self.active && self.active_progress >= 0.9 {
+                self.active = false;
+            }
         }
     }
 
     fn on_click(&mut self) {
-        println!("Button clicked: {}", self.text);
-        self.active = true;
+        if !self.disabled {
+            println!("Button clicked: {}", self.text);
+            self.active = true;
+        }
     }
 
     fn as_any(&self) -> &dyn std::any::Any {

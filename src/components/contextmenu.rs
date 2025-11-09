@@ -1,7 +1,7 @@
 use skia_safe::{Canvas, Color, Paint, Rect};
 use crate::components::Widget;
 use crate::core::FontManager;
-use crate::theme::ZedTheme;
+use crate::theme::Theme;
 
 #[derive(Clone)]
 pub struct MenuItem {
@@ -98,9 +98,17 @@ impl ContextMenu {
     fn separator_height(&self) -> f32 {
         9.0
     }
+    
+    fn padding_top(&self) -> f32 {
+        Theme::SPACE_1
+    }
+    
+    fn padding_bottom(&self) -> f32 {
+        Theme::SPACE_1
+    }
 
     fn get_item_rect(&self, index: usize) -> Rect {
-        let mut y = self.y;
+        let mut y = self.y + self.padding_top();
         for i in 0..index {
             if self.items[i].separator {
                 y += self.separator_height();
@@ -119,13 +127,14 @@ impl ContextMenu {
     }
 
     fn total_height(&self) -> f32 {
-        self.items.iter().map(|item| {
+        let items_height: f32 = self.items.iter().map(|item| {
             if item.separator {
                 self.separator_height()
             } else {
                 self.item_height()
             }
-        }).sum()
+        }).sum();
+        items_height + self.padding_top() + self.padding_bottom()
     }
 }
 
@@ -136,88 +145,105 @@ impl Widget for ContextMenu {
         }
 
         let total_height = self.total_height();
+        let border_radius = Theme::RADIUS_MD;
+        let padding = Theme::SPACE_1;
 
-        // Draw shadow
-        let shadow_rect = Rect::from_xywh(self.x + 2.0, self.y + 2.0, self.width, total_height);
+        // Draw shadow (shadcn style - subtle)
+        let shadow_rect = Rect::from_xywh(self.x, self.y + 4.0, self.width, total_height);
         let mut shadow_paint = Paint::default();
-        shadow_paint.set_color(Color::from_argb(50, 0, 0, 0));
+        shadow_paint.set_color(Color::from_argb(30, 0, 0, 0));
         shadow_paint.set_anti_alias(true);
-        canvas.draw_round_rect(shadow_rect, 8.0, 8.0, &shadow_paint);
+        canvas.draw_round_rect(shadow_rect, border_radius, border_radius, &shadow_paint);
 
-        // Draw background
+        // Draw background (popover style)
         let bg_rect = Rect::from_xywh(self.x, self.y, self.width, total_height);
         let mut bg_paint = Paint::default();
-        bg_paint.set_color(ZedTheme::ELEVATED);
+        bg_paint.set_color(Theme::POPOVER);
         bg_paint.set_anti_alias(true);
-        canvas.draw_round_rect(bg_rect, 8.0, 8.0, &bg_paint);
+        canvas.draw_round_rect(bg_rect, border_radius, border_radius, &bg_paint);
 
         // Draw border
         let mut border_paint = Paint::default();
-        border_paint.set_color(ZedTheme::BORDER);
+        border_paint.set_color(Theme::BORDER);
         border_paint.set_style(skia_safe::PaintStyle::Stroke);
         border_paint.set_stroke_width(1.0);
         border_paint.set_anti_alias(true);
-        canvas.draw_round_rect(bg_rect, 8.0, 8.0, &border_paint);
+        canvas.draw_round_rect(
+            Rect::from_xywh(
+                self.x + 0.5,
+                self.y + 0.5,
+                self.width - 1.0,
+                total_height - 1.0,
+            ),
+            border_radius,
+            border_radius,
+            &border_paint,
+        );
 
         // Draw items
         for (i, item) in self.items.iter().enumerate() {
             let item_rect = self.get_item_rect(i);
 
             if item.separator {
-                // Draw separator line
+                // Draw separator line (shadcn style)
                 let line_y = item_rect.top + item_rect.height() / 2.0;
                 let mut line_paint = Paint::default();
-                line_paint.set_color(ZedTheme::BORDER);
+                line_paint.set_color(Theme::BORDER);
                 line_paint.set_stroke_width(1.0);
                 line_paint.set_anti_alias(true);
                 canvas.draw_line(
-                    (item_rect.left + 8.0, line_y),
-                    (item_rect.right - 8.0, line_y),
+                    (item_rect.left + Theme::SPACE_2, line_y),
+                    (item_rect.right - Theme::SPACE_2, line_y),
                     &line_paint,
                 );
             } else {
-                // Draw hover background
+                // Draw hover background (shadcn accent style)
                 if self.hover_index == Some(i) && !item.disabled {
                     let alpha = (self.hover_progress[i] * 255.0) as u8;
                     let mut hover_paint = Paint::default();
-                    hover_paint.set_color(Color::from_argb(alpha, 60, 120, 249));
+                    hover_paint.set_color(Color::from_argb(
+                        alpha,
+                        Theme::ACCENT.r(),
+                        Theme::ACCENT.g(),
+                        Theme::ACCENT.b(),
+                    ));
                     hover_paint.set_anti_alias(true);
                     canvas.draw_round_rect(
                         Rect::from_xywh(
-                            item_rect.left + 4.0,
-                            item_rect.top + 2.0,
-                            item_rect.width() - 8.0,
-                            item_rect.height() - 4.0,
+                            item_rect.left + padding,
+                            item_rect.top + 1.0,
+                            item_rect.width() - (padding * 2.0),
+                            item_rect.height() - 2.0,
                         ),
-                        4.0,
-                        4.0,
+                        Theme::RADIUS_SM,
+                        Theme::RADIUS_SM,
                         &hover_paint,
                     );
                 }
 
                 // Draw text
                 let text_color = if item.disabled {
-                    ZedTheme::TEXT_MUTED
+                    Theme::MUTED_FOREGROUND
                 } else {
-                    ZedTheme::TEXT
+                    Theme::POPOVER_FOREGROUND
                 };
 
-                let text_x = item_rect.left + 12.0;
+                let text_x = item_rect.left + Theme::SPACE_2;
                 let text_y = item_rect.top + item_rect.height() / 2.0 + 5.0;
 
-                let font = font_manager.create_font(&item.label, 14.0, 400);
+                let font = font_manager.create_font(&item.label, Theme::TEXT_SM, 400);
                 let mut text_paint = Paint::default();
                 text_paint.set_color(text_color);
                 text_paint.set_anti_alias(true);
                 canvas.draw_str(&item.label, (text_x, text_y), &font, &text_paint);
 
-                // Draw shortcut if present
+                // Draw shortcut if present (shadcn style)
                 if let Some(ref shortcut) = item.shortcut {
-                    let font = font_manager.create_font(shortcut, 12.0, 400);
+                    let font = font_manager.create_font(shortcut, Theme::TEXT_XS, 400);
                     let text_width = font.measure_str(shortcut, None).0;
-                    let shortcut_x = item_rect.right - 12.0 - text_width;
+                    let shortcut_x = item_rect.right - Theme::SPACE_2 - text_width;
                     let mut text_paint = Paint::default();
-                    text_paint.set_color(ZedTheme::TEXT_MUTED);
+                    text_paint.set_color(Theme::MUTED_FOREGROUND);
                     text_paint.set_anti_alias(true);
                     canvas.draw_str(shortcut, (shortcut_x, text_y), &font, &text_paint);
                 }

@@ -10,10 +10,12 @@ mod widget;
 mod contextmenu;
 mod dropdown;
 mod menubar;
+mod card;
+mod badge;
 
 pub mod lucide;
 
-pub use button::{Button, ButtonStyle};
+pub use button::Button;
 pub use checkbox::Checkbox;
 pub use icon::{Icon, IconSize};
 pub use input::Input;
@@ -26,3 +28,5 @@ pub use widget::Widget;
 pub use contextmenu::{ContextMenu, MenuItem};
 pub use dropdown::Dropdown;
 pub use menubar::{MenuBar, MenuBarItem};
+pub use card::Card;
+pub use badge::Badge;

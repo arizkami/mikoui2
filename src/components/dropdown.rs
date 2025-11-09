@@ -1,7 +1,7 @@
 use skia_safe::{Canvas, Color, Paint, Rect};
 use crate::components::Widget;
 use crate::core::FontManager;
-use crate::theme::ZedTheme;
+use crate::theme::{with_alpha, Size, Theme};
 
 pub struct Dropdown {
     x: f32,
@@ -15,6 +15,7 @@ pub struct Dropdown {
     hover_option: Option<usize>,
     hover_progress: f32,
     option_hover_progress: Vec<f32>,
+    size: Size,
 }
 
 impl Dropdown {
@@ -32,7 +33,13 @@ impl Dropdown {
             hover_option: None,
             hover_progress: 0.0,
             option_hover_progress,
+            size: Size::Md,
         }
+    }
+    
+    pub fn size(mut self, size: Size) -> Self {
+        self.size = size;
+        self
     }
 
     pub fn selected_index(&self) -> usize {
@@ -48,13 +55,30 @@ impl Dropdown {
             self.selected_index = index;
         }
     }
+    
+    pub fn is_open(&self) -> bool {
+        self.open
+    }
+    
+    pub fn close(&mut self) {
+        self.open = false;
+        self.hover_option = None;
+    }
 
     fn button_height(&self) -> f32 {
-        40.0
+        self.size.height()
     }
 
     fn option_height(&self) -> f32 {
         36.0
+    }
+    
+    fn padding_top(&self) -> f32 {
+        Theme::SPACE_1
+    }
+    
+    fn padding_bottom(&self) -> f32 {
+        Theme::SPACE_1
     }
 
     fn button_rect(&self) -> Rect {
@@ -62,12 +86,13 @@ impl Dropdown {
     }
 
     fn dropdown_rect(&self) -> Rect {
-        let height = self.options.len() as f32 * self.option_height();
+        let items_height = self.options.len() as f32 * self.option_height();
+        let total_height = items_height + self.padding_top() + self.padding_bottom();
         Rect::from_xywh(
             self.x,
-            self.y + self.button_height() + 4.0,
+            self.y + self.button_height() + Theme::SPACE_1,
             self.width,
-            height,
+            total_height,
         )
     }
 
@@ -75,7 +100,7 @@ impl Dropdown {
         let dropdown = self.dropdown_rect();
         Rect::from_xywh(
             dropdown.left,
-            dropdown.top + index as f32 * self.option_height(),
+            dropdown.top + self.padding_top() + index as f32 * self.option_height(),
             dropdown.width(),
             self.option_height(),
         )
@@ -87,24 +112,16 @@ impl Widget for Dropdown {
         let button_rect = self.button_rect();
 
         // Draw button background
-        let bg_color = if self.open {
-            ZedTheme::INPUT_FOCUS
-        } else if self.hover {
-            ZedTheme::INPUT_HOVER
-        } else {
-            ZedTheme::INPUT_BG
-        };
-
         let mut bg_paint = Paint::default();
-        bg_paint.set_color(bg_color);
+        bg_paint.set_color(Theme::BACKGROUND);
         bg_paint.set_anti_alias(true);
-        canvas.draw_round_rect(button_rect, 6.0, 6.0, &bg_paint);
+        canvas.draw_round_rect(button_rect, Theme::RADIUS_MD, Theme::RADIUS_MD, &bg_paint);
 
-        // Draw border
+        // Draw border with focus ring
         let border_color = if self.open {
-            ZedTheme::BORDER_FOCUS
+            Theme::RING
         } else {
-            ZedTheme::BORDER
+            Theme::BORDER
         };
 
         let mut border_paint = Paint::default();
@@ -112,15 +129,47 @@ impl Widget for Dropdown {
         border_paint.set_style(skia_safe::PaintStyle::Stroke);
         border_paint.set_stroke_width(1.0);
         border_paint.set_anti_alias(true);
-        canvas.draw_round_rect(button_rect, 6.0, 6.0, &border_paint);
+        canvas.draw_round_rect(
+            Rect::from_xywh(
+                button_rect.left + 0.5,
+                button_rect.top + 0.5,
+                button_rect.width() - 1.0,
+                button_rect.height() - 1.0,
+            ),
+            Theme::RADIUS_MD,
+            Theme::RADIUS_MD,
+            &border_paint,
+        );
+        
+        // Focus ring when open
+        if self.open {
+            let mut ring_paint = Paint::default();
+            ring_paint.set_color(with_alpha(Theme::RING, 100));
+            ring_paint.set_style(skia_safe::PaintStyle::Stroke);
+            ring_paint.set_stroke_width(3.0);
+            ring_paint.set_anti_alias(true);
+            canvas.draw_round_rect(
+                Rect::from_xywh(
+                    button_rect.left - 1.5,
+                    button_rect.top - 1.5,
+                    button_rect.width() + 3.0,
+                    button_rect.height() + 3.0,
+                ),
+                Theme::RADIUS_MD + 1.5,
+                Theme::RADIUS_MD + 1.5,
+                &ring_paint,
+            );
+        }
 
         // Draw selected value
-        let text_x = button_rect.left + 12.0;
-        let text_y = button_rect.top + button_rect.height() / 2.0 + 5.0;
+        let padding_x = self.size.padding_x();
+        let font_size = self.size.font_size();
+        let text_x = button_rect.left + padding_x;
+        let text_y = button_rect.top + button_rect.height() / 2.0 + (font_size * 0.3);
         
-        let font = font_manager.create_font(self.selected_value(), 14.0, 400);
+        let font = font_manager.create_font(self.selected_value(), font_size, 400);
         let mut text_paint = Paint::default();
-        text_paint.set_color(ZedTheme::TEXT);
+        text_paint.set_color(Theme::FOREGROUND);
         text_paint.set_anti_alias(true);
         canvas.draw_str(self.selected_value(), (text_x, text_y), &font, &text_paint);
 
@@ -130,7 +179,7 @@ impl Widget for Dropdown {
         let arrow_size = 8.0;
         
         let mut arrow_paint = Paint::default();
-        arrow_paint.set_color(ZedTheme::TEXT_DIM);
+        arrow_paint.set_color(Theme::MUTED_FOREGROUND);
         arrow_paint.set_style(skia_safe::PaintStyle::Stroke);
         arrow_paint.set_stroke_width(2.0);
         arrow_paint.set_anti_alias(true);
@@ -149,51 +198,66 @@ impl Widget for Dropdown {
         if self.open {
             let dropdown_rect = self.dropdown_rect();
 
-            // Draw shadow
+            // Draw shadow (shadcn style)
             let shadow_rect = Rect::from_xywh(
-                dropdown_rect.left + 2.0,
-                dropdown_rect.top + 2.0,
+                dropdown_rect.left,
+                dropdown_rect.top + 4.0,
                 dropdown_rect.width(),
                 dropdown_rect.height(),
             );
             let mut shadow_paint = Paint::default();
-            shadow_paint.set_color(Color::from_argb(50, 0, 0, 0));
+            shadow_paint.set_color(with_alpha(Theme::BACKGROUND, 30));
             shadow_paint.set_anti_alias(true);
-            canvas.draw_round_rect(shadow_rect, 6.0, 6.0, &shadow_paint);
+            canvas.draw_round_rect(shadow_rect, Theme::RADIUS_MD, Theme::RADIUS_MD, &shadow_paint);
 
-            // Draw background
+            // Draw background (popover style)
             let mut dropdown_bg = Paint::default();
-            dropdown_bg.set_color(ZedTheme::ELEVATED);
+            dropdown_bg.set_color(Theme::POPOVER);
             dropdown_bg.set_anti_alias(true);
-            canvas.draw_round_rect(dropdown_rect, 6.0, 6.0, &dropdown_bg);
+            canvas.draw_round_rect(dropdown_rect, Theme::RADIUS_MD, Theme::RADIUS_MD, &dropdown_bg);
 
             // Draw border
             let mut dropdown_border = Paint::default();
-            dropdown_border.set_color(ZedTheme::BORDER);
+            dropdown_border.set_color(Theme::BORDER);
             dropdown_border.set_style(skia_safe::PaintStyle::Stroke);
             dropdown_border.set_stroke_width(1.0);
             dropdown_border.set_anti_alias(true);
-            canvas.draw_round_rect(dropdown_rect, 6.0, 6.0, &dropdown_border);
+            canvas.draw_round_rect(
+                Rect::from_xywh(
+                    dropdown_rect.left + 0.5,
+                    dropdown_rect.top + 0.5,
+                    dropdown_rect.width() - 1.0,
+                    dropdown_rect.height() - 1.0,
+                ),
+                Theme::RADIUS_MD,
+                Theme::RADIUS_MD,
+                &dropdown_border,
+            );
 
             // Draw options
             for (i, option) in self.options.iter().enumerate() {
                 let option_rect = self.option_rect(i);
 
-                // Draw hover background
+                // Draw hover background (shadcn accent style)
                 if self.hover_option == Some(i) {
                     let alpha = (self.option_hover_progress[i] * 255.0) as u8;
                     let mut hover_paint = Paint::default();
-                    hover_paint.set_color(Color::from_argb(alpha, 60, 120, 249));
+                    hover_paint.set_color(Color::from_argb(
+                        alpha,
+                        Theme::ACCENT.r(),
+                        Theme::ACCENT.g(),
+                        Theme::ACCENT.b(),
+                    ));
                     hover_paint.set_anti_alias(true);
                     canvas.draw_round_rect(
                         Rect::from_xywh(
-                            option_rect.left + 4.0,
-                            option_rect.top + 2.0,
-                            option_rect.width() - 8.0,
-                            option_rect.height() - 4.0,
+                            option_rect.left + Theme::SPACE_1,
+                            option_rect.top + 1.0,
+                            option_rect.width() - (Theme::SPACE_1 * 2.0),
+                            option_rect.height() - 2.0,
                         ),
-                        4.0,
-                        4.0,
+                        Theme::RADIUS_SM,
+                        Theme::RADIUS_SM,
                         &hover_paint,
                     );
                 }
@@ -204,7 +268,7 @@ impl Widget for Dropdown {
                     let check_y = option_rect.top + option_rect.height() / 2.0;
                     
                     let mut check_paint = Paint::default();
-                    check_paint.set_color(ZedTheme::PRIMARY);
+                    check_paint.set_color(Theme::PRIMARY);
                     check_paint.set_style(skia_safe::PaintStyle::Stroke);
                     check_paint.set_stroke_width(2.0);
                     check_paint.set_anti_alias(true);
@@ -214,12 +278,12 @@ impl Widget for Dropdown {
                 }
 
                 // Draw option text
-                let option_text_x = option_rect.left + 12.0;
+                let option_text_x = option_rect.left + Theme::SPACE_2;
                 let option_text_y = option_rect.top + option_rect.height() / 2.0 + 5.0;
                 
-                let font = font_manager.create_font(option, 14.0, 400);
+                let font = font_manager.create_font(option, Theme::TEXT_SM, 400);
                 let mut text_paint = Paint::default();
-                text_paint.set_color(ZedTheme::TEXT);
+                text_paint.set_color(Theme::POPOVER_FOREGROUND);
                 text_paint.set_anti_alias(true);
                 canvas.draw_str(option, (option_text_x, option_text_y), &font, &text_paint);
             }

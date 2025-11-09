@@ -1,7 +1,7 @@
-use skia_safe::{Canvas, Color, Font, Paint, Rect};
+use skia_safe::{Canvas, Color, Paint, Rect};
 
 use crate::components::Widget;
-use crate::theme::ZedTheme;
+use crate::theme::{with_alpha, Theme};
 
 pub struct ProgressBar {
     x: f32,
@@ -46,10 +46,10 @@ impl Widget for ProgressBar {
     fn draw(&self, canvas: &Canvas, font_manager: &mut crate::core::FontManager) {
         let border_radius = self.height / 2.0;
 
-        // Draw background with subtle gradient
+        // Draw background
         let mut bg_paint = Paint::default();
         bg_paint.set_anti_alias(true);
-        bg_paint.set_color(ZedTheme::SURFACE);
+        bg_paint.set_color(Theme::SECONDARY);
         canvas.draw_round_rect(
             Rect::from_xywh(self.x, self.y, self.width, self.height),
             border_radius,
@@ -63,7 +63,7 @@ impl Widget for ProgressBar {
             // Main progress bar
             let mut progress_paint = Paint::default();
             progress_paint.set_anti_alias(true);
-            progress_paint.set_color(ZedTheme::PRIMARY);
+            progress_paint.set_color(Theme::PRIMARY);
             canvas.draw_round_rect(
                 Rect::from_xywh(self.x, self.y, filled_width, self.height),
                 border_radius,
@@ -78,7 +78,7 @@ impl Widget for ProgressBar {
             if pulse_x > self.x && pulse_x < self.x + filled_width {
                 let mut shine_paint = Paint::default();
                 shine_paint.set_anti_alias(true);
-                shine_paint.set_color(Color::from_argb(40, 255, 255, 255));
+                shine_paint.set_color(with_alpha(Theme::PRIMARY_FOREGROUND, 40));
                 
                 let shine_rect = Rect::from_xywh(
                     pulse_x.max(self.x),
@@ -88,38 +88,20 @@ impl Widget for ProgressBar {
                 );
                 canvas.draw_round_rect(shine_rect, border_radius, border_radius, &shine_paint);
             }
-
-            // Highlight on top edge
-            let mut highlight_paint = Paint::default();
-            highlight_paint.set_anti_alias(true);
-            highlight_paint.set_color(Color::from_argb(30, 255, 255, 255));
-            canvas.draw_round_rect(
-                Rect::from_xywh(self.x, self.y, filled_width, self.height / 3.0),
-                border_radius,
-                border_radius,
-                &highlight_paint,
-            );
         }
 
         // Draw label if present
         if let Some(label) = self.label {
-            let font = font_manager.create_font(label, 11.0, 500);
+            let font = font_manager.create_font(label, Theme::TEXT_XS, 500);
             
-            // Draw text with shadow for better visibility
             let (text_width, _) = font.measure_str(label, None);
             let text_x = self.x + (self.width - text_width) / 2.0;
             let text_y = self.y + self.height / 2.0 + 4.0;
 
-            // Shadow
-            let mut shadow_paint = Paint::default();
-            shadow_paint.set_anti_alias(true);
-            shadow_paint.set_color(Color::from_argb(100, 0, 0, 0));
-            canvas.draw_str(label, (text_x + 0.5, text_y + 0.5), &font, &shadow_paint);
-
             // Text
             let mut text_paint = Paint::default();
             text_paint.set_anti_alias(true);
-            text_paint.set_color(ZedTheme::TEXT);
+            text_paint.set_color(Theme::FOREGROUND);
             canvas.draw_str(label, (text_x, text_y), &font, &text_paint);
         }
     }

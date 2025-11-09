@@ -8,12 +8,12 @@ name = "mikoui"
 path = "src/lib.rs"
 
 [[example]]
-name = "direct_skia"
-path = "examples/direct_skia.rs"
+name = "shadcn_demo"
+path = "examples/shadcn_demo.rs"
 
 [dependencies]
 skia-safe = { version = "0.78", features = ["textlayout"] }
-winit = "0.30"
+winit = { version = "0.30", features = ["wayland", "x11"] }
 softbuffer = "0.4"
 resvg = "0.42"
 usvg = "0.42"
