@@ -1,4 +1,4 @@
-use skia_safe::{Font, Typeface};
+use skia_safe::Font;
 use softbuffer::{Context, Surface};
 use std::num::NonZeroU32;
 use std::rc::Rc;
@@ -9,9 +9,11 @@ use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::window::{Window, WindowId};
 
 mod components;
+mod core;
 mod theme;
 
 use components::{Button, ButtonStyle, Checkbox, Input, Label, Panel, ProgressBar, Slider, Widget};
+use core::FontManager;
 use theme::ZedTheme;
 
 struct App {
@@ -19,7 +21,7 @@ struct App {
     surface: Option<Surface<Rc<Window>, Rc<Window>>>,
     widgets: Vec<Box<dyn Widget>>,
     mouse_pos: (f32, f32),
-    typeface: Option<Typeface>,
+    font_manager: FontManager,
     start_time: Instant,
     dragging_slider: Option<usize>,
 }
@@ -31,99 +33,13 @@ impl App {
             surface: None,
             widgets: Vec::new(),
             mouse_pos: (0.0, 0.0),
-            typeface: None,
+            font_manager: FontManager::new(),
             start_time: Instant::now(),
             dragging_slider: None,
         }
     }
 
-    fn load_variable_font(&mut self) {
-        // Embed Inter Variable font in binary
-        const FONT_DATA: &[u8] = include_bytes!("../fonts/InterVariable.ttf");
-        
-        // Create Data from embedded bytes
-        let data = skia_safe::Data::new_copy(FONT_DATA);
-        
-        // Try to create typeface from data
-        if let Some(typeface) = skia_safe::FontMgr::new().new_from_data(&data, None) {
-            println!("Loaded embedded Inter Variable font ({} bytes)", FONT_DATA.len());
-            
-            // Check if it's a variable font
-            let variation_count = typeface.variation_design_position().map(|v| v.len()).unwrap_or(0);
-            if variation_count > 0 {
-                println!("Variable font detected with {} axes", variation_count);
-            }
-            
-            self.typeface = Some(typeface);
-            return;
-        }
-        
-        println!("Warning: Failed to load embedded font, using system default");
-        // Use system default font
-        if let Some(typeface) = skia_safe::FontMgr::new().legacy_make_typeface(None, skia_safe::FontStyle::default()) {
-            self.typeface = Some(typeface);
-        }
-    }
 
-    fn create_variable_font(typeface: &Typeface, size: f32, weight: i32) -> Font {
-        // Set variation design coordinates for wght and opsz axes
-        // Inter Variable supports:
-        // - wght (weight): 100-900
-        // - opsz (optical size): 14-32
-        let weight_value = weight.clamp(100, 900) as f32;
-        let opsz_value = size.clamp(14.0, 32.0);
-        
-        // Create FourByteTag for axes using from_chars
-        let wght_tag = skia_safe::FourByteTag::from_chars('w', 'g', 'h', 't');
-        let opsz_tag = skia_safe::FourByteTag::from_chars('o', 'p', 's', 'z');
-        
-        // Create variation position coordinates
-        use skia_safe::font_arguments::variation_position::Coordinate;
-        let coordinates = [
-            Coordinate {
-                axis: wght_tag,
-                value: weight_value,
-            },
-            Coordinate {
-                axis: opsz_tag,
-                value: opsz_value,
-            },
-        ];
-        
-        // Create font arguments with Variable Font axes
-        let font_args = skia_safe::FontArguments::new().set_variation_design_position(
-            skia_safe::font_arguments::VariationPosition {
-                coordinates: &coordinates,
-            },
-        );
-        
-        // Create typeface with variation
-        let varied_typeface = typeface.clone_with_arguments(&font_args).unwrap_or_else(|| typeface.clone());
-        
-        // Create font with the varied typeface
-        let mut font = Font::from_typeface(&varied_typeface, size);
-        
-        // Enhanced sub-pixel rendering for Variable Font
-        font.set_edging(skia_safe::font::Edging::SubpixelAntiAlias);
-        font.set_subpixel(true);
-        font.set_linear_metrics(true);
-        font.set_hinting(skia_safe::FontHinting::None);
-        font.set_force_auto_hinting(false);
-        font.set_embedded_bitmaps(false);
-        font.set_baseline_snap(false);
-        
-        // Fine-tune spacing based on optical size
-        let spacing_adjustment = if size <= 12.0 {
-            1.01 // Slightly more spacing for small text
-        } else if size >= 20.0 {
-            1.0 // Normal spacing for large text
-        } else {
-            1.0
-        };
-        
-        font.set_scale_x(spacing_adjustment);
-        font
-    }
 
     fn setup_ui(&mut self) {
         // Panel background
@@ -277,7 +193,6 @@ impl ApplicationHandler for App {
             self.window = Some(window);
             self.surface = Some(surface);
 
-            self.load_variable_font();
             self.setup_ui();
         }
     }
@@ -393,10 +308,14 @@ impl ApplicationHandler for App {
                         }
 
                         // Draw all widgets
-                        let typeface = self.typeface.clone();
                         for widget in &self.widgets {
                             widget.draw(canvas, &|size, weight| {
-                                Self::create_variable_font(typeface.as_ref().unwrap(), size, weight)
+                                // Use English for now, components can be updated to pass text
+                                self.font_manager.create_font_for_language(
+                                    core::font_manager::Language::English,
+                                    size,
+                                    weight,
+                                )
                             });
                         }
 
