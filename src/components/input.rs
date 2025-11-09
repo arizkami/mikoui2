@@ -45,6 +45,30 @@ impl Input {
     pub fn set_text(&mut self, text: String) {
         self.text = text;
     }
+
+    pub fn is_focused(&self) -> bool {
+        self.focused
+    }
+
+    pub fn set_focused(&mut self, focused: bool) {
+        self.focused = focused;
+    }
+
+    pub fn handle_char(&mut self, c: char) {
+        if self.focused && !c.is_control() {
+            self.text.push(c);
+        }
+    }
+
+    pub fn handle_backspace(&mut self) {
+        if self.focused && !self.text.is_empty() {
+            self.text.pop();
+        }
+    }
+
+    pub fn clear(&mut self) {
+        self.text.clear();
+    }
 }
 
 impl Widget for Input {

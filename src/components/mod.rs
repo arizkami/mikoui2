@@ -7,6 +7,9 @@ mod panel;
 mod progress;
 mod slider;
 mod widget;
+mod contextmenu;
+mod dropdown;
+mod menubar;
 
 pub mod lucide;
 
@@ -20,3 +23,6 @@ pub use panel::Panel;
 pub use progress::ProgressBar;
 pub use slider::Slider;
 pub use widget::Widget;
+pub use contextmenu::{ContextMenu, MenuItem};
+pub use dropdown::Dropdown;
+pub use menubar::{MenuBar, MenuBarItem};

@@ -1,6 +1,6 @@
 use mikoui::{
-    Button, ButtonStyle, Checkbox, Icon, IconSize, Input, Label, LucideIcons, Panel, 
-    ProgressBar, Slider, Widget, FontManager, ZedTheme
+    Button, ButtonStyle, Checkbox, ContextMenu, Dropdown, Icon, IconSize, Input, Label, 
+    LucideIcons, MenuItem, Panel, ProgressBar, Slider, Widget, FontManager, ZedTheme
 };
 use softbuffer::{Context, Surface};
 use std::num::NonZeroU32;
@@ -9,6 +9,7 @@ use std::time::Instant;
 use winit::application::ApplicationHandler;
 use winit::event::{ElementState, MouseButton, WindowEvent};
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
+use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::window::{Window, WindowId};
 use skia_safe::Color;
 
@@ -20,6 +21,8 @@ struct App {
     font_manager: FontManager,
     start_time: Instant,
     dragging_slider: Option<usize>,
+    focused_input: Option<usize>,
+    context_menu_index: Option<usize>,
 }
 
 impl App {
@@ -32,6 +35,8 @@ impl App {
             font_manager: FontManager::new(),
             start_time: Instant::now(),
             dragging_slider: None,
+            focused_input: None,
+            context_menu_index: None,
         }
     }
 
@@ -211,6 +216,40 @@ impl App {
             0.7,
         )));
 
+        // Dropdown
+        self.widgets.push(Box::new(Label::new(
+            400.0,
+            260.0,
+            "Dropdown:",
+            18.0,
+            600,
+            Color::WHITE,
+        )));
+
+        self.widgets.push(Box::new(Dropdown::new(
+            400.0,
+            290.0,
+            200.0,
+            "Theme",
+            vec![
+                "Dark".to_string(),
+                "Light".to_string(),
+                "Auto".to_string(),
+            ],
+        )));
+
+        // Context menu (initially hidden)
+        let menu_items = vec![
+            MenuItem::new("Cut", 1).with_shortcut("Ctrl+X"),
+            MenuItem::new("Copy", 2).with_shortcut("Ctrl+C"),
+            MenuItem::new("Paste", 3).with_shortcut("Ctrl+V"),
+            MenuItem::separator(),
+            MenuItem::new("Select All", 4).with_shortcut("Ctrl+A"),
+            MenuItem::separator(),
+            MenuItem::new("Delete", 5).disabled(),
+        ];
+        self.widgets.push(Box::new(ContextMenu::new(0.0, 0.0, menu_items)));
+
         // Action buttons at bottom
         self.widgets.push(Box::new(Button::new(
             50.0,
@@ -229,6 +268,9 @@ impl App {
             "Cancel",
             ButtonStyle::Secondary,
         )));
+
+        // Store context menu index
+        self.context_menu_index = Some(self.widgets.len() - 3);
     }
 
     fn render(&mut self) {
@@ -341,6 +383,32 @@ impl ApplicationHandler for App {
                 button: MouseButton::Left,
                 ..
             } => {
+                // Hide context menu if clicking outside
+                if let Some(menu_index) = self.context_menu_index {
+                    let mut clicked_menu = false;
+                    if let Some(menu) = self.widgets.get(menu_index).and_then(|w| w.as_any().downcast_ref::<ContextMenu>()) {
+                        if menu.is_visible() && menu.contains(self.mouse_pos.0, self.mouse_pos.1) {
+                            clicked_menu = true;
+                        }
+                    }
+                    
+                    if !clicked_menu {
+                        if let Some(menu) = self.widgets.get_mut(menu_index).and_then(|w| w.as_any_mut().downcast_mut::<ContextMenu>()) {
+                            if menu.is_visible() {
+                                menu.hide();
+                            }
+                        }
+                    }
+                }
+
+                // Clear previous input focus
+                if let Some(prev_index) = self.focused_input {
+                    if let Some(input) = self.widgets.get_mut(prev_index).and_then(|w| w.as_any_mut().downcast_mut::<Input>()) {
+                        input.set_focused(false);
+                    }
+                }
+                self.focused_input = None;
+
                 // Handle clicks
                 for (idx, widget) in self.widgets.iter_mut().enumerate() {
                     if widget.contains(self.mouse_pos.0, self.mouse_pos.1) {
@@ -349,6 +417,14 @@ impl ApplicationHandler for App {
                         // Check if it's a slider
                         if widget.as_any().is::<Slider>() {
                             self.dragging_slider = Some(idx);
+                        }
+                        
+                        // Check if it's an input field
+                        if widget.as_any().is::<Input>() {
+                            self.focused_input = Some(idx);
+                            if let Some(input) = widget.as_any_mut().downcast_mut::<Input>() {
+                                input.set_focused(true);
+                            }
                         }
                     }
                 }
@@ -363,6 +439,64 @@ impl ApplicationHandler for App {
                 ..
             } => {
                 self.dragging_slider = None;
+            }
+            WindowEvent::MouseInput {
+                state: ElementState::Pressed,
+                button: MouseButton::Right,
+                ..
+            } => {
+                // Show context menu on right click
+                if let Some(menu_index) = self.context_menu_index {
+                    if let Some(menu) = self.widgets.get_mut(menu_index).and_then(|w| w.as_any_mut().downcast_mut::<ContextMenu>()) {
+                        menu.show(self.mouse_pos.0, self.mouse_pos.1);
+                    }
+                }
+
+                if let Some(window) = &self.window {
+                    window.request_redraw();
+                }
+            }
+            WindowEvent::KeyboardInput { event, .. } => {
+                if event.state == ElementState::Pressed {
+                    // Handle keyboard input for focused input field
+                    if let Some(input_index) = self.focused_input {
+                        if let Some(input) = self.widgets.get_mut(input_index).and_then(|w| w.as_any_mut().downcast_mut::<Input>()) {
+                            match event.physical_key {
+                                PhysicalKey::Code(KeyCode::Backspace) => {
+                                    input.handle_backspace();
+                                }
+                                PhysicalKey::Code(KeyCode::Escape) => {
+                                    input.set_focused(false);
+                                    self.focused_input = None;
+                                }
+                                PhysicalKey::Code(KeyCode::Space) => {
+                                    input.handle_char(' ');
+                                }
+                                _ => {
+                                    // Handle text from the event
+                                    if let Some(text) = &event.text {
+                                        for c in text.chars() {
+                                            input.handle_char(c);
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // Hide context menu on Escape
+                    if let PhysicalKey::Code(KeyCode::Escape) = event.physical_key {
+                        if let Some(menu_index) = self.context_menu_index {
+                            if let Some(menu) = self.widgets.get_mut(menu_index).and_then(|w| w.as_any_mut().downcast_mut::<ContextMenu>()) {
+                                menu.hide();
+                            }
+                        }
+                    }
+
+                    if let Some(window) = &self.window {
+                        window.request_redraw();
+                    }
+                }
             }
             _ => {}
         }
