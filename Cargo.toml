@@ -11,6 +11,10 @@ path = "src/lib.rs"
 name = "mikoui_example"
 path = "examples/main.rs"
 
+[[example]]
+name = "borderless"
+path = "examples/borderlessexample.rs"
+
 [dependencies]
 skia-safe = { version = "0.78", features = ["textlayout"] }
 winit = { version = "0.30", features = ["wayland", "x11"] }
@@ -18,3 +22,11 @@ softbuffer = "0.4"
 resvg = "0.42"
 usvg = "0.42"
 tiny-skia = "0.11"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.58", features = [
+    "Win32_Foundation",
+    "Win32_Graphics_Dwm",
+    "Win32_UI_WindowsAndMessaging",
+    "Win32_UI_Shell",
+] }
