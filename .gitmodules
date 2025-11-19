@@ -1,3 +1,6 @@
 [submodule "src/components/icons"]
 	path = src/components/icons
 	url = https://github.com/lucide-icons/lucide
+[submodule "src/components/codicon"]
+	path = src/components/codicon
+	url = https://github.com/microsoft/vscode-codicons
