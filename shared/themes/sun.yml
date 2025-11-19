@@ -1,0 +1,100 @@
+# Sun Theme - Warm and energetic
+name: "Sun"
+author: "Rabital Team"
+version: "1.0.0"
+
+# Dark Mode - Sunset
+dark:
+  background: "#1a1410"
+  foreground: "#ffecd1"
+  
+  card: "#2a2218"
+  card_hover: "#3a3228"
+  popover: "#2a2218"
+  
+  primary: "#ff9f1c"
+  primary_foreground: "#1a1410"
+  
+  secondary: "#3a3228"
+  secondary_foreground: "#ffecd1"
+  
+  muted: "#3a3228"
+  muted_foreground: "#d4a574"
+  
+  accent: "#ff6b35"
+  accent_foreground: "#ffffff"
+  
+  destructive: "#e63946"
+  destructive_foreground: "#ffffff"
+  
+  border: "#3a3228"
+  input: "#2a2218"
+  ring: "#ff9f1c"
+  
+  syntax:
+    keyword: "#ff6b35"
+    string: "#06ffa5"
+    number: "#ffbe0b"
+    comment: "#6a5d4f"
+    function: "#ff9f1c"
+    variable: "#fb5607"
+    type: "#8ecae6"
+    operator: "#ffb703"
+    punctuation: "#ffecd1"
+    tag: "#ff6b35"
+    attribute: "#ffbe0b"
+    
+  editor:
+    line_number: "#4a4238"
+    line_number_active: "#8a7a68"
+    selection: "#4a3a2a"
+    cursor: "#ff9f1c"
+    gutter: "#2a2218"
+
+# Light Mode - Sunrise
+light:
+  background: "#fffbf0"
+  foreground: "#2d1b0e"
+  
+  card: "#fff4e0"
+  card_hover: "#ffe8c0"
+  popover: "#ffffff"
+  
+  primary: "#f77f00"
+  primary_foreground: "#ffffff"
+  
+  secondary: "#fff4e0"
+  secondary_foreground: "#2d1b0e"
+  
+  muted: "#fff4e0"
+  muted_foreground: "#8b6f47"
+  
+  accent: "#d62828"
+  accent_foreground: "#ffffff"
+  
+  destructive: "#c1121f"
+  destructive_foreground: "#ffffff"
+  
+  border: "#ffe8c0"
+  input: "#ffffff"
+  ring: "#f77f00"
+  
+  syntax:
+    keyword: "#d62828"
+    string: "#06a77d"
+    number: "#f77f00"
+    comment: "#9ca3af"
+    function: "#f77f00"
+    variable: "#c1121f"
+    type: "#0077b6"
+    operator: "#fb8500"
+    punctuation: "#4b5563"
+    tag: "#d62828"
+    attribute: "#f77f00"
+    
+  editor:
+    line_number: "#ffd89b"
+    line_number_active: "#f77f00"
+    selection: "#ffe8c0"
+    cursor: "#d62828"
+    gutter: "#fff4e0"

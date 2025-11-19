@@ -1,0 +1,17 @@
+[package]
+name = "mikoterminal"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+name = "mikoterminal"
+path = "lib.rs"
+
+[dependencies]
+# For terminal rendering
+skia-safe.workspace = true
+
+# For text handling
+unicode-width = "0.1"

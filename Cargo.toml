@@ -3,6 +3,7 @@ resolver = "2"
 members = [
     "crates/mikoui",
     "crates/mikocore",
+    "crates/mikoterminal",
 ]
 
 [workspace.package]
@@ -30,6 +31,11 @@ resvg = "0.42"
 usvg = "0.42"
 tiny-skia = "0.11"
 image = "0.25"
+
+# Terminal
+alacritty_terminal = "0.23"
+unicode-width = "0.1"
+log = "0.4"
 
 # Windows-specific
 windows = { version = "0.58", features = [

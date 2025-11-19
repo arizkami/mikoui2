@@ -1,0 +1,100 @@
+# Moe Theme - Soft and cute anime-inspired
+name: "Moe"
+author: "Rabital Team"
+version: "1.0.0"
+
+# Dark Mode - Soft Night
+dark:
+  background: "#1e1a2e"
+  foreground: "#ffd6e8"
+  
+  card: "#2e2640"
+  card_hover: "#3e3650"
+  popover: "#2e2640"
+  
+  primary: "#ff9cee"
+  primary_foreground: "#1e1a2e"
+  
+  secondary: "#3e3650"
+  secondary_foreground: "#ffd6e8"
+  
+  muted: "#3e3650"
+  muted_foreground: "#c8a2c8"
+  
+  accent: "#ffb3d9"
+  accent_foreground: "#1e1a2e"
+  
+  destructive: "#ff6b9d"
+  destructive_foreground: "#ffffff"
+  
+  border: "#3e3650"
+  input: "#2e2640"
+  ring: "#ff9cee"
+  
+  syntax:
+    keyword: "#ff9cee"
+    string: "#a8e6cf"
+    number: "#ffd97d"
+    comment: "#7d6b8f"
+    function: "#c7ceea"
+    variable: "#ffb3d9"
+    type: "#b4e7ff"
+    operator: "#ffc8dd"
+    punctuation: "#ffd6e8"
+    tag: "#ff9cee"
+    attribute: "#ffd97d"
+    
+  editor:
+    line_number: "#4e4660"
+    line_number_active: "#8e7690"
+    selection: "#4e3a5e"
+    cursor: "#ff9cee"
+    gutter: "#2e2640"
+
+# Light Mode - Soft Day
+light:
+  background: "#fff5f9"
+  foreground: "#3d2e4f"
+  
+  card: "#ffe8f5"
+  card_hover: "#ffd8eb"
+  popover: "#ffffff"
+  
+  primary: "#e879f9"
+  primary_foreground: "#ffffff"
+  
+  secondary: "#ffe8f5"
+  secondary_foreground: "#3d2e4f"
+  
+  muted: "#ffe8f5"
+  muted_foreground: "#9d7ba8"
+  
+  accent: "#f472b6"
+  accent_foreground: "#ffffff"
+  
+  destructive: "#f43f5e"
+  destructive_foreground: "#ffffff"
+  
+  border: "#ffd8eb"
+  input: "#ffffff"
+  ring: "#e879f9"
+  
+  syntax:
+    keyword: "#d946ef"
+    string: "#10b981"
+    number: "#f59e0b"
+    comment: "#a1a1aa"
+    function: "#8b5cf6"
+    variable: "#ec4899"
+    type: "#06b6d4"
+    operator: "#f472b6"
+    punctuation: "#52525b"
+    tag: "#d946ef"
+    attribute: "#f59e0b"
+    
+  editor:
+    line_number: "#f5d0fe"
+    line_number_active: "#e879f9"
+    selection: "#fae8ff"
+    cursor: "#d946ef"
+    gutter: "#ffe8f5"

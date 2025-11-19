@@ -1,4 +1,4 @@
-#![windows_subsystem="windows"]
+// #![windows_subsystem="windows"]
 
 mod theme;
 mod components;
@@ -91,8 +91,8 @@ impl App {
         let mut font_manager = FontManager::new();
         
         // Load Inter Variable font as primary font
-        const INTER_FONT_DATA: &[u8] = include_bytes!("fonts/InterVariable.ttf");
-        font_manager.set_primary_font(INTER_FONT_DATA);
+        // const INTER_FONT_DATA: &[u8] = include_bytes!("fonts/InterVariable.ttf");
+        // font_manager.set_primary_font(INTER_FONT_DATA);
         
         Self {
             window: None,

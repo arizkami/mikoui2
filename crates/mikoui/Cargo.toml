@@ -29,6 +29,7 @@ resvg.workspace = true
 usvg.workspace = true
 tiny-skia.workspace = true
 image.workspace = true
+mikoterminal = { path = "../mikoterminal" }
 
 [target.'cfg(windows)'.dependencies]
 windows.workspace = true

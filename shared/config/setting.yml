@@ -1,0 +1,73 @@
+# Rabital Global Configuration
+
+# Editor Settings
+editor:
+  font_family: "Inter Variable"
+  font_size: 14
+  line_height: 1.5
+  tab_size: 4
+  insert_spaces: true
+  word_wrap: false
+  auto_save: true
+  auto_save_delay: 1000 # milliseconds
+
+# Theme Settings
+theme:
+  name: "default"
+  mode: "dark" # dark or light
+
+# Window Settings
+window:
+  width: 1200
+  height: 800
+  remember_size: true
+  remember_position: true
+
+# Layout Settings
+layout:
+  left_panel:
+    visible: true
+    width: 300
+  right_panel:
+    visible: false
+    width: 300
+  bottom_panel:
+    visible: false
+    height: 200
+
+# Terminal Settings
+terminal:
+  shell: "auto" # auto, powershell, bash, cmd, zsh
+  font_size: 14
+  scrollback_limit: 10000
+  cursor_blink: true
+
+# UI Settings
+ui:
+  show_minimap: true
+  show_line_numbers: true
+  show_git_gutter: true
+  smooth_scrolling: true
+  animation_speed: "normal" # slow, normal, fast, off
+
+# File Settings
+files:
+  auto_guess_encoding: true
+  default_encoding: "utf-8"
+  trim_trailing_whitespace: true
+  insert_final_newline: true
+  exclude_patterns:
+    - "node_modules"
+    - ".git"
+    - "target"
+    - "build"
+    - "dist"
+
+# Search Settings
+search:
+  case_sensitive: false
+  whole_word: false
+  use_regex: false
+  exclude_patterns:
+    - "*.min.js"
+    - "*.map"

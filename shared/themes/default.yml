@@ -1,0 +1,120 @@
+# Default Theme for Rabital
+name: "Default"
+author: "Rabital Team"
+version: "1.0.0"
+
+# Dark Mode Colors
+dark:
+  # Base colors
+  background: "#0a0a0a"
+  foreground: "#e4e4e7"
+  
+  # UI Elements
+  card: "#18181b"
+  card_hover: "#27272a"
+  popover: "#18181b"
+  
+  # Primary colors
+  primary: "#3b82f6"
+  primary_foreground: "#ffffff"
+  
+  # Secondary colors
+  secondary: "#27272a"
+  secondary_foreground: "#fafafa"
+  
+  # Muted colors
+  muted: "#27272a"
+  muted_foreground: "#a1a1aa"
+  
+  # Accent colors
+  accent: "#3b82f6"
+  accent_foreground: "#ffffff"
+  
+  # Destructive colors
+  destructive: "#ef4444"
+  destructive_foreground: "#fafafa"
+  
+  # Border and input
+  border: "#27272a"
+  input: "#18181b"
+  ring: "#3b82f6"
+  
+  # Syntax highlighting
+  syntax:
+    keyword: "#c678dd"
+    string: "#98c379"
+    number: "#d19a66"
+    comment: "#5c6370"
+    function: "#61afef"
+    variable: "#e06c75"
+    type: "#e5c07b"
+    operator: "#56b6c2"
+    punctuation: "#abb2bf"
+    tag: "#e06c75"
+    attribute: "#d19a66"
+    
+  # Editor colors
+  editor:
+    line_number: "#3f3f46"
+    line_number_active: "#71717a"
+    selection: "#264f78"
+    cursor: "#ffffff"
+    gutter: "#18181b"
+    
+# Light Mode Colors
+light:
+  # Base colors
+  background: "#ffffff"
+  foreground: "#09090b"
+  
+  # UI Elements
+  card: "#f4f4f5"
+  card_hover: "#e4e4e7"
+  popover: "#ffffff"
+  
+  # Primary colors
+  primary: "#2563eb"
+  primary_foreground: "#ffffff"
+  
+  # Secondary colors
+  secondary: "#f4f4f5"
+  secondary_foreground: "#18181b"
+  
+  # Muted colors
+  muted: "#f4f4f5"
+  muted_foreground: "#71717a"
+  
+  # Accent colors
+  accent: "#2563eb"
+  accent_foreground: "#ffffff"
+  
+  # Destructive colors
+  destructive: "#dc2626"
+  destructive_foreground: "#fafafa"
+  
+  # Border and input
+  border: "#e4e4e7"
+  input: "#ffffff"
+  ring: "#2563eb"
+  
+  # Syntax highlighting
+  syntax:
+    keyword: "#a626a4"
+    string: "#50a14f"
+    number: "#986801"
+    comment: "#a0a1a7"
+    function: "#4078f2"
+    variable: "#e45649"
+    type: "#c18401"
+    operator: "#0184bc"
+    punctuation: "#383a42"
+    tag: "#e45649"
+    attribute: "#986801"
+    
+  # Editor colors
+  editor:
+    line_number: "#d4d4d8"
+    line_number_active: "#71717a"
+    selection: "#add6ff"
+    cursor: "#09090b"
+    gutter: "#f4f4f5"

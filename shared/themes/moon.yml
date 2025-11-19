@@ -1,0 +1,100 @@
+# Moon Theme - Cool and serene
+name: "Moon"
+author: "Rabital Team"
+version: "1.0.0"
+
+# Dark Mode - Moonlight
+dark:
+  background: "#0f1419"
+  foreground: "#d5dce3"
+  
+  card: "#1a1f29"
+  card_hover: "#252a35"
+  popover: "#1a1f29"
+  
+  primary: "#5ccfe6"
+  primary_foreground: "#0f1419"
+  
+  secondary: "#252a35"
+  secondary_foreground: "#d5dce3"
+  
+  muted: "#252a35"
+  muted_foreground: "#8a93a3"
+  
+  accent: "#80d4ff"
+  accent_foreground: "#0f1419"
+  
+  destructive: "#f28b82"
+  destructive_foreground: "#0f1419"
+  
+  border: "#252a35"
+  input: "#1a1f29"
+  ring: "#5ccfe6"
+  
+  syntax:
+    keyword: "#c792ea"
+    string: "#c3e88d"
+    number: "#f78c6c"
+    comment: "#546e7a"
+    function: "#82aaff"
+    variable: "#89ddff"
+    type: "#ffcb6b"
+    operator: "#89ddff"
+    punctuation: "#d5dce3"
+    tag: "#f07178"
+    attribute: "#c792ea"
+    
+  editor:
+    line_number: "#3a4555"
+    line_number_active: "#6a7585"
+    selection: "#2a3545"
+    cursor: "#5ccfe6"
+    gutter: "#1a1f29"
+
+# Light Mode - Daylight
+light:
+  background: "#f8fafd"
+  foreground: "#1e2a3a"
+  
+  card: "#e8f0f8"
+  card_hover: "#d8e8f8"
+  popover: "#ffffff"
+  
+  primary: "#0891b2"
+  primary_foreground: "#ffffff"
+  
+  secondary: "#e8f0f8"
+  secondary_foreground: "#1e2a3a"
+  
+  muted: "#e8f0f8"
+  muted_foreground: "#64748b"
+  
+  accent: "#0284c7"
+  accent_foreground: "#ffffff"
+  
+  destructive: "#dc2626"
+  destructive_foreground: "#ffffff"
+  
+  border: "#d8e8f8"
+  input: "#ffffff"
+  ring: "#0891b2"
+  
+  syntax:
+    keyword: "#7c3aed"
+    string: "#16a34a"
+    number: "#ea580c"
+    comment: "#94a3b8"
+    function: "#2563eb"
+    variable: "#0891b2"
+    type: "#ca8a04"
+    operator: "#0891b2"
+    punctuation: "#475569"
+    tag: "#dc2626"
+    attribute: "#7c3aed"
+    
+  editor:
+    line_number: "#cbd5e1"
+    line_number_active: "#0891b2"
+    selection: "#bfdbfe"
+    cursor: "#0891b2"
+    gutter: "#e8f0f8"

@@ -1,0 +1,100 @@
+# Greyscale Theme - Monochrome elegance
+name: "Greyscale"
+author: "Rabital Team"
+version: "1.0.0"
+
+# Dark Mode - Charcoal
+dark:
+  background: "#0d0d0d"
+  foreground: "#e5e5e5"
+  
+  card: "#1a1a1a"
+  card_hover: "#262626"
+  popover: "#1a1a1a"
+  
+  primary: "#a3a3a3"
+  primary_foreground: "#0d0d0d"
+  
+  secondary: "#262626"
+  secondary_foreground: "#e5e5e5"
+  
+  muted: "#262626"
+  muted_foreground: "#737373"
+  
+  accent: "#d4d4d4"
+  accent_foreground: "#0d0d0d"
+  
+  destructive: "#8c8c8c"
+  destructive_foreground: "#ffffff"
+  
+  border: "#262626"
+  input: "#1a1a1a"
+  ring: "#a3a3a3"
+  
+  syntax:
+    keyword: "#d4d4d4"
+    string: "#a3a3a3"
+    number: "#8c8c8c"
+    comment: "#525252"
+    function: "#e5e5e5"
+    variable: "#b8b8b8"
+    type: "#c2c2c2"
+    operator: "#a3a3a3"
+    punctuation: "#8c8c8c"
+    tag: "#d4d4d4"
+    attribute: "#b8b8b8"
+    
+  editor:
+    line_number: "#404040"
+    line_number_active: "#737373"
+    selection: "#333333"
+    cursor: "#e5e5e5"
+    gutter: "#1a1a1a"
+
+# Light Mode - Pearl
+light:
+  background: "#fafafa"
+  foreground: "#171717"
+  
+  card: "#f5f5f5"
+  card_hover: "#e5e5e5"
+  popover: "#ffffff"
+  
+  primary: "#525252"
+  primary_foreground: "#ffffff"
+  
+  secondary: "#f5f5f5"
+  secondary_foreground: "#171717"
+  
+  muted: "#f5f5f5"
+  muted_foreground: "#737373"
+  
+  accent: "#404040"
+  accent_foreground: "#ffffff"
+  
+  destructive: "#525252"
+  destructive_foreground: "#ffffff"
+  
+  border: "#e5e5e5"
+  input: "#ffffff"
+  ring: "#525252"
+  
+  syntax:
+    keyword: "#262626"
+    string: "#525252"
+    number: "#737373"
+    comment: "#a3a3a3"
+    function: "#171717"
+    variable: "#404040"
+    type: "#333333"
+    operator: "#525252"
+    punctuation: "#737373"
+    tag: "#262626"
+    attribute: "#404040"
+    
+  editor:
+    line_number: "#d4d4d4"
+    line_number_active: "#525252"
+    selection: "#e5e5e5"
+    cursor: "#171717"
+    gutter: "#f5f5f5"
