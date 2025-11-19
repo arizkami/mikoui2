@@ -5,15 +5,15 @@ mod components;
 mod core;
 
 use mikoui::{
-    set_theme, FontManager, MenuBar, TitleBar, ThemeColors, ThemeMode, Widget, WindowControl, 
+    set_theme, FontManager, ThemeColors, ThemeMode, Widget, 
     dwm_windows,
 };
-use components::ActivityBar;
+use components::{ActivityBar, TitleBar, MenuBar, WindowControl, LayoutButton, LeftPanel, RightPanel, BottomPanel, LayoutConfig};
 use core::{create_editor_menus, handle_menu_action};
 use theme::{kiro::KiroTheme, vscode::VSCodeTheme, xcode::XcodeTheme};
 
 #[cfg(target_os = "windows")]
-use mikoui::core::titlebar::windows_titlebar;
+use components::titlebar::windows_titlebar;
 use softbuffer::{Context, Surface};
 use std::num::NonZeroU32;
 use std::rc::Rc;
@@ -62,6 +62,10 @@ struct App {
     titlebar: Option<TitleBar>,
     menubar: Option<MenuBar>,
     activitybar: Option<ActivityBar>,
+    left_panel: Option<LeftPanel>,
+    right_panel: Option<RightPanel>,
+    bottom_panel: Option<BottomPanel>,
+    layout_config: LayoutConfig,
     widgets: Vec<Box<dyn Widget>>,
     mouse_pos: (f32, f32),
     font_manager: FontManager,
@@ -83,15 +87,26 @@ impl App {
         let theme_colors = current_theme.get_colors(theme_mode);
         set_theme(theme_colors);
         
+        // Initialize font manager with system fonts
+        let mut font_manager = FontManager::new();
+        
+        // Load Inter Variable font as primary font
+        const INTER_FONT_DATA: &[u8] = include_bytes!("fonts/InterVariable.ttf");
+        font_manager.set_primary_font(INTER_FONT_DATA);
+        
         Self {
             window: None,
             surface: None,
             titlebar: None,
             menubar: None,
             activitybar: None,
+            left_panel: None,
+            right_panel: None,
+            bottom_panel: None,
+            layout_config: LayoutConfig::default(),
             widgets: Vec::new(),
             mouse_pos: (0.0, 0.0),
-            font_manager: FontManager::new(),
+            font_manager,
             start_time: Instant::now(),
             theme_colors,
             theme_mode,
@@ -167,9 +182,58 @@ impl App {
         
         // Create activity bar
         let activitybar = ActivityBar::new(0.0, TITLEBAR_HEIGHT, _height - TITLEBAR_HEIGHT);
+        let activity_bar_width = activitybar.width();
         self.activitybar = Some(activitybar);
         
-        // Content area is now blank - ready for your application content
+        // Create layout panels
+        let content_top = TITLEBAR_HEIGHT;
+        let content_left = activity_bar_width;
+        let content_width = width - content_left;
+        let content_height = _height - content_top;
+        
+        // Left panel
+        if self.layout_config.left_panel_visible {
+            let left_panel = LeftPanel::new(
+                content_left,
+                content_top,
+                self.layout_config.left_panel_width,
+                content_height,
+            );
+            self.layout_config.left_panel_width = left_panel.width();
+            self.left_panel = Some(left_panel);
+        } else {
+            self.left_panel = None;
+        }
+        
+        // Right panel
+        if self.layout_config.right_panel_visible {
+            let right_x = width - self.layout_config.right_panel_width;
+            let right_panel = RightPanel::new(
+                right_x,
+                content_top,
+                self.layout_config.right_panel_width,
+                content_height,
+            );
+            self.layout_config.right_panel_width = right_panel.width();
+            self.right_panel = Some(right_panel);
+        } else {
+            self.right_panel = None;
+        }
+        
+        // Bottom panel
+        if self.layout_config.bottom_panel_visible {
+            let bottom_y = _height - self.layout_config.bottom_panel_height;
+            let bottom_panel = BottomPanel::new(
+                content_left,
+                bottom_y,
+                content_width,
+                self.layout_config.bottom_panel_height,
+            );
+            self.layout_config.bottom_panel_height = bottom_panel.height();
+            self.bottom_panel = Some(bottom_panel);
+        } else {
+            self.bottom_panel = None;
+        }
     }
     
     fn handle_button_click(&mut self, _x: f32, _y: f32) {
@@ -301,6 +365,22 @@ impl App {
             if let Some(ref mut activitybar) = self.activitybar {
                 activitybar.update_animation(elapsed);
                 activitybar.draw(canvas, &mut self.font_manager);
+            }
+            
+            // Update and draw layout panels
+            if let Some(ref mut left_panel) = self.left_panel {
+                left_panel.update_animation(elapsed);
+                left_panel.draw(canvas, &mut self.font_manager);
+            }
+            
+            if let Some(ref mut right_panel) = self.right_panel {
+                right_panel.update_animation(elapsed);
+                right_panel.draw(canvas, &mut self.font_manager);
+            }
+            
+            if let Some(ref mut bottom_panel) = self.bottom_panel {
+                bottom_panel.update_animation(elapsed);
+                bottom_panel.draw(canvas, &mut self.font_manager);
             }
             
             // Update and draw widgets
@@ -439,6 +519,47 @@ impl ApplicationHandler for App {
                     activitybar.update_hover(self.mouse_pos.0, self.mouse_pos.1);
                 }
                 
+                // Update panel hover states and handle resizing
+                if let Some(ref mut left_panel) = self.left_panel {
+                    if left_panel.is_resizing() {
+                        left_panel.resize_to(self.mouse_pos.0);
+                        self.layout_config.left_panel_width = left_panel.width();
+                        // Rebuild UI to update layout
+                        if let Some(window) = &self.window {
+                            let size = window.inner_size();
+                            self.build_ui(size.width as f32, size.height as f32);
+                        }
+                    } else {
+                        left_panel.update_hover(self.mouse_pos.0, self.mouse_pos.1);
+                    }
+                }
+                
+                if let Some(ref mut right_panel) = self.right_panel {
+                    if right_panel.is_resizing() {
+                        if let Some(window) = &self.window {
+                            let size = window.inner_size();
+                            right_panel.resize_to(self.mouse_pos.0, size.width as f32);
+                            self.layout_config.right_panel_width = right_panel.width();
+                            self.build_ui(size.width as f32, size.height as f32);
+                        }
+                    } else {
+                        right_panel.update_hover(self.mouse_pos.0, self.mouse_pos.1);
+                    }
+                }
+                
+                if let Some(ref mut bottom_panel) = self.bottom_panel {
+                    if bottom_panel.is_resizing() {
+                        if let Some(window) = &self.window {
+                            let size = window.inner_size();
+                            bottom_panel.resize_to(self.mouse_pos.1, size.height as f32);
+                            self.layout_config.bottom_panel_height = bottom_panel.height();
+                            self.build_ui(size.width as f32, size.height as f32);
+                        }
+                    } else {
+                        bottom_panel.update_hover(self.mouse_pos.0, self.mouse_pos.1);
+                    }
+                }
+                
                 for widget in &mut self.widgets {
                     widget.update_hover(self.mouse_pos.0, self.mouse_pos.1);
                 }
@@ -488,6 +609,36 @@ impl ApplicationHandler for App {
                         }
                         return;
                     }
+                    
+                    // Check layout toggle buttons
+                    if let Some(layout_btn) = titlebar.get_clicked_layout_button(self.mouse_pos.0, self.mouse_pos.1) {
+                        match layout_btn {
+                            LayoutButton::LeftPanel => {
+                                self.layout_config.left_panel_visible = !self.layout_config.left_panel_visible;
+                            }
+                            LayoutButton::BottomPanel => {
+                                self.layout_config.bottom_panel_visible = !self.layout_config.bottom_panel_visible;
+                            }
+                            LayoutButton::RightPanel => {
+                                self.layout_config.right_panel_visible = !self.layout_config.right_panel_visible;
+                            }
+                        }
+                        
+                        // Rebuild UI with new layout
+                        let size = if let Some(window) = &self.window {
+                            Some(window.inner_size())
+                        } else {
+                            None
+                        };
+                        
+                        if let Some(size) = size {
+                            self.build_ui(size.width as f32, size.height as f32);
+                            if let Some(window) = &self.window {
+                                window.request_redraw();
+                            }
+                        }
+                        return;
+                    }
                 }
                 
                 // Check menubar
@@ -513,6 +664,37 @@ impl ApplicationHandler for App {
                 if let Some(ref mut activitybar) = self.activitybar {
                     if activitybar.contains(self.mouse_pos.0, self.mouse_pos.1) {
                         activitybar.on_click();
+                        if let Some(window) = &self.window {
+                            window.request_redraw();
+                        }
+                        return;
+                    }
+                }
+                
+                // Check panel resize handles
+                if let Some(ref mut left_panel) = self.left_panel {
+                    if left_panel.is_over_resize_handle(self.mouse_pos.0, self.mouse_pos.1) {
+                        left_panel.start_resize();
+                        if let Some(window) = &self.window {
+                            window.request_redraw();
+                        }
+                        return;
+                    }
+                }
+                
+                if let Some(ref mut right_panel) = self.right_panel {
+                    if right_panel.is_over_resize_handle(self.mouse_pos.0, self.mouse_pos.1) {
+                        right_panel.start_resize();
+                        if let Some(window) = &self.window {
+                            window.request_redraw();
+                        }
+                        return;
+                    }
+                }
+                
+                if let Some(ref mut bottom_panel) = self.bottom_panel {
+                    if bottom_panel.is_over_resize_handle(self.mouse_pos.0, self.mouse_pos.1) {
+                        bottom_panel.start_resize();
                         if let Some(window) = &self.window {
                             window.request_redraw();
                         }
@@ -552,6 +734,17 @@ impl ApplicationHandler for App {
             } => {
                 self.is_dragging = false;
                 self.drag_start_pos = None;
+                
+                // Stop panel resizing
+                if let Some(ref mut left_panel) = self.left_panel {
+                    left_panel.stop_resize();
+                }
+                if let Some(ref mut right_panel) = self.right_panel {
+                    right_panel.stop_resize();
+                }
+                if let Some(ref mut bottom_panel) = self.bottom_panel {
+                    bottom_panel.stop_resize();
+                }
             }
             WindowEvent::MouseInput {
                 state: ElementState::Pressed,

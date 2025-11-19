@@ -65,37 +65,48 @@ fn copy_dir_recursive(src: &Path, dst: &Path) -> std::io::Result<()> {
 }
 
 fn main() {
-    println!("cargo:rerun-if-changed=cretes/mikoui/components/icons/icons");
-    println!("cargo:rerun-if-changed=cretes/mikoui/components/codicon/cretes/mikoui/icons");
-    println!("cargo:rerun-if-changed=app/assets/app.rc");
-    println!("cargo:rerun-if-changed=app/assets/icon.ico");
-    println!("cargo:rerun-if-changed=shared");
+    // Paths relative to workspace root
+    println!("cargo:rerun-if-changed=../../crates/mikoui/components/icons/icons");
+    println!("cargo:rerun-if-changed=../../crates/mikoui/components/codicon/src/icons");
+    println!("cargo:rerun-if-changed=../../app/assets/app.rc");
+    println!("cargo:rerun-if-changed=../../app/assets/icon.ico");
+    println!("cargo:rerun-if-changed=../../shared");
     
     let out_dir = env::var("OUT_DIR").unwrap();
     
+    // Get workspace root (go up from crates/mikoui)
+    let manifest_dir = env::var("CARGO_MANIFEST_DIR").unwrap();
+    let workspace_root = Path::new(&manifest_dir).parent().unwrap().parent().unwrap();
+    
     // Generate Lucide icons
-    generate_icons(
-        "cretes/mikoui/components/icons/icons",
-        "lucide_generated.rs",
-        "LucideIcons",
-        &out_dir
-    );
+    let lucide_path = workspace_root.join("crates/mikoui/components/icons/icons");
+    if lucide_path.exists() {
+        generate_icons(
+            lucide_path.to_str().unwrap(),
+            "lucide_generated.rs",
+            "LucideIcons",
+            &out_dir
+        );
+    }
     
     // Generate Codicon icons
-    generate_icons(
-        "cretes/mikoui/components/codicon/cretes/mikoui/icons",
-        "codicon_generated.rs",
-        "CodiconIcons",
-        &out_dir
-    );
+    let codicon_path = workspace_root.join("crates/mikoui/components/codicon/src/icons");
+    if codicon_path.exists() {
+        generate_icons(
+            codicon_path.to_str().unwrap(),
+            "codicon_generated.rs",
+            "CodiconIcons",
+            &out_dir
+        );
+    }
     
     // Compile Windows resources (icon) for the app binary
     #[cfg(target_os = "windows")]
     {
-        // Always compile the resource file when building
-        if Path::new("app/assets/app.rc").exists() {
+        let rc_path = workspace_root.join("app/assets/app.rc");
+        if rc_path.exists() {
             println!("cargo:warning=Compiling Windows resource file app/assets/app.rc");
-            embed_resource::compile("app/assets/app.rc", embed_resource::NONE);
+            embed_resource::compile(rc_path.to_str().unwrap(), embed_resource::NONE);
         } else {
             println!("cargo:warning=Resource file app/assets/app.rc not found");
         }
@@ -103,8 +114,8 @@ fn main() {
     
     // Copy shared folder to build directory (CMake style)
     let profile = env::var("PROFILE").unwrap_or_else(|_| "debug".to_string());
-    let build_dir = Path::new("build").join(&profile);
-    let shared_src = Path::new("shared");
+    let build_dir = workspace_root.join("build").join(&profile);
+    let shared_src = workspace_root.join("shared");
     let shared_dst = build_dir.join("shared");
     
     // Create build directory structure
@@ -113,7 +124,7 @@ fn main() {
     }
     
     if shared_src.exists() {
-        if let Err(e) = copy_dir_recursive(shared_src, &shared_dst) {
+        if let Err(e) = copy_dir_recursive(&shared_src, &shared_dst) {
             println!("cargo:warning=Failed to copy shared folder: {}", e);
         } else {
             println!("cargo:warning=Copied shared folder to {}", shared_dst.display());

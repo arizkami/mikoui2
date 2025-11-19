@@ -1,0 +1,12 @@
+# Cargo configuration
+# Set custom target directory to build/ (CMake style)
+
+[build]
+target-dir = "build"
+
+[alias]
+# Custom build aliases
+build-release = "build --release --bin rabital"
+build-debug = "build --bin rabital"
+run-release = "run --release --bin rabital"
+run-debug = "run --bin rabital"

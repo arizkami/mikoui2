@@ -1,0 +1,13 @@
+[package]
+name = "mikocore"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+name = "mikocore"
+path = "lib.rs"
+
+[dependencies]
+# Core dependencies will be added as needed

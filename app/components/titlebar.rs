@@ -1,7 +1,7 @@
 use skia_safe::{Canvas, Color, Paint, Rect};
-use crate::core::FontManager;
-use crate::components::{Widget, Icon, IconSize, CodiconIcons};
-use crate::theme::current_theme;
+use mikoui::core::FontManager;
+use mikoui::components::{Widget, Icon, IconSize, CodiconIcons};
+use mikoui::theme::current_theme;
 
 #[cfg(target_os = "windows")]
 use windows::Win32::{
@@ -19,6 +19,14 @@ pub enum WindowControl {
     Maximize,
     Restore,
     Close,
+}
+
+/// Layout toggle button types
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub enum LayoutButton {
+    LeftPanel,
+    BottomPanel,
+    RightPanel,
 }
 
 /// Windows-specific titlebar features
@@ -429,6 +437,39 @@ impl TitleBar {
         } else {
             None
         }
+    }
+    
+    /// Get which layout button was clicked, if any
+    pub fn get_clicked_layout_button(&self, x: f32, y: f32) -> Option<LayoutButton> {
+        let right_end = self.minimize_btn.x - 16.0;
+        let layout_buttons_width = 100.0;
+        let layout_button_size = 28.0;
+        let layout_button_gap = 4.0;
+        let layout_start = right_end - layout_buttons_width + 8.0;
+        let center_y = self.y + self.height / 2.0;
+        
+        // Check each layout button
+        for i in 0..3 {
+            let button_x = layout_start + (i as f32 * (layout_button_size + layout_button_gap));
+            let button_rect = Rect::from_xywh(
+                button_x,
+                center_y - layout_button_size / 2.0,
+                layout_button_size,
+                layout_button_size,
+            );
+            
+            if x >= button_rect.left && x <= button_rect.right 
+                && y >= button_rect.top && y <= button_rect.bottom {
+                return match i {
+                    0 => Some(LayoutButton::LeftPanel),
+                    1 => Some(LayoutButton::BottomPanel),
+                    2 => Some(LayoutButton::RightPanel),
+                    _ => None,
+                };
+            }
+        }
+        
+        None
     }
 }
 

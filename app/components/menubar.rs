@@ -1,10 +1,10 @@
 use skia_safe::{Canvas, Color, Paint, Rect, Image, Data};
-use crate::components::{MenuItem, Widget};
-use crate::core::FontManager;
-use crate::theme::current_theme;
+use mikoui::components::{MenuItem, Widget};
+use mikoui::core::FontManager;
+use mikoui::theme::current_theme;
 
 // Embed the app logo
-const APP_LOGO: &[u8] = include_bytes!("../../app/assets/logo.png");
+const APP_LOGO: &[u8] = include_bytes!("../assets/logo.png");
 
 pub struct MenuBarItem {
     pub label: String,

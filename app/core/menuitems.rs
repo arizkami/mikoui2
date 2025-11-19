@@ -1,4 +1,5 @@
-use mikoui::{MenuBarItem, MenuItem};
+use mikoui::MenuItem;
+use crate::components::MenuBarItem;
 use std::process::Command;
 
 /// Spawn a new window instance

@@ -1,0 +1,37 @@
+[package]
+name = "mikoui"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+
+[lib]
+name = "mikoui"
+path = "lib.rs"
+
+[[example]]
+name = "mikoui_example"
+path = "../../examples/main.rs"
+
+[[example]]
+name = "borderless"
+path = "../../examples/borderlessexample.rs"
+
+[[bin]]
+name = "rabital"
+path = "../../app/app.rs"
+
+[dependencies]
+skia-safe.workspace = true
+winit.workspace = true
+softbuffer.workspace = true
+resvg.workspace = true
+usvg.workspace = true
+tiny-skia.workspace = true
+image.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows.workspace = true
+
+[build-dependencies]
+embed-resource = "2.4"

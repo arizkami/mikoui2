@@ -27,7 +27,7 @@ pub enum FontWeight {
 }
 
 pub struct FontManager {
-    // Primary font (Inter Variable)
+    // Primary system font
     primary_typeface: Option<Typeface>,
     
     // Language-specific fonts
@@ -58,16 +58,8 @@ impl FontManager {
     }
     
     fn load_fonts(&mut self) {
-        // Load embedded Inter Variable font
-        const INTER_FONT_DATA: &[u8] = include_bytes!("../../fonts/InterVariable.ttf");
-        let data = Data::new_copy(INTER_FONT_DATA);
-        
-        if let Some(typeface) = self.font_mgr.new_from_data(&data, None) {
-            println!("✓ Loaded Inter Variable font ({} bytes)", INTER_FONT_DATA.len());
-            self.primary_typeface = Some(typeface);
-        } else {
-            println!("✗ Failed to load Inter Variable font");
-        }
+        // Load system default font based on platform
+        self.load_system_font();
         
         // Try to load Thai fonts from system
         self.load_thai_fonts();
@@ -77,6 +69,43 @@ impl FontManager {
         
         // Try to load Arabic fonts from system
         self.load_arabic_fonts();
+    }
+    
+    fn load_system_font(&mut self) {
+        // Platform-specific system fonts
+        let system_fonts = if cfg!(target_os = "windows") {
+            vec!["Segoe UI", "Segoe UI Variable", "Arial", "Tahoma"]
+        } else if cfg!(target_os = "macos") {
+            vec!["SF Pro", "Helvetica Neue", "Helvetica", "Arial"]
+        } else {
+            // Linux
+            vec!["Ubuntu", "Noto Sans", "DejaVu Sans", "Liberation Sans", "Arial"]
+        };
+        
+        for font_name in system_fonts {
+            if let Some(typeface) = self.font_mgr.match_family_style(font_name, FontStyle::normal()) {
+                println!("✓ Loaded system font: {}", font_name);
+                self.primary_typeface = Some(typeface);
+                return;
+            }
+        }
+        
+        println!("⚠ No system font found, using default");
+    }
+    
+    /// Set custom primary font (e.g., Inter Variable from app)
+    pub fn set_primary_font(&mut self, font_data: &[u8]) -> bool {
+        let data = Data::new_copy(font_data);
+        
+        if let Some(typeface) = self.font_mgr.new_from_data(&data, None) {
+            println!("✓ Loaded custom primary font ({} bytes)", font_data.len());
+            self.primary_typeface = Some(typeface);
+            self.clear_cache(); // Clear cache to use new font
+            true
+        } else {
+            println!("✗ Failed to load custom primary font");
+            false
+        }
     }
     
     fn load_thai_fonts(&mut self) {

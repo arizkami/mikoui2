@@ -1,25 +1,28 @@
-[package]
-name = "mikoui"
+[workspace]
+resolver = "2"
+members = [
+    "crates/mikoui",
+    "crates/mikocore",
+]
+
+[workspace.package]
 version = "0.1.0"
 edition = "2021"
+authors = ["Rabital Team"]
+license = "MIT"
 
-[lib]
-name = "mikoui"
-path = "src/lib.rs"
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true
 
-[[example]]
-name = "mikoui_example"
-path = "examples/main.rs"
+[profile.dev]
+opt-level = 0
+debug = true
 
-[[example]]
-name = "borderless"
-path = "examples/borderlessexample.rs"
-
-[[bin]]
-name = "app"
-path = "app/app.rs"
-
-[dependencies]
+[workspace.dependencies]
+# UI and Graphics
 skia-safe = { version = "0.78", features = ["textlayout"] }
 winit = { version = "0.30", features = ["wayland", "x11"] }
 softbuffer = "0.4"
@@ -28,7 +31,7 @@ usvg = "0.42"
 tiny-skia = "0.11"
 image = "0.25"
 
-[target.'cfg(windows)'.dependencies]
+# Windows-specific
 windows = { version = "0.58", features = [
     "Win32_Foundation",
     "Win32_Graphics_Dwm",
@@ -37,6 +40,3 @@ windows = { version = "0.58", features = [
     "Win32_UI_Shell_Common",
     "Win32_System_Com",
 ] }
-
-[build-dependencies]
-embed-resource = "2.4"
