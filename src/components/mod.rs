@@ -15,6 +15,7 @@ mod badge;
 mod skeleton;
 
 pub mod lucide;
+pub mod codicon;
 
 pub use button::Button;
 pub use checkbox::Checkbox;
@@ -22,6 +23,7 @@ pub use icon::{Icon, IconSize};
 pub use input::Input;
 pub use label::Label;
 pub use lucide::LucideIcons;
+pub use codicon::CodiconIcons;
 pub use panel::Panel;
 pub use progress::{ProgressBar, ProgressSize};
 pub use slider::Slider;

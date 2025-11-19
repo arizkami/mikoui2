@@ -15,6 +15,10 @@ path = "examples/main.rs"
 name = "borderless"
 path = "examples/borderlessexample.rs"
 
+[[bin]]
+name = "app"
+path = "app/app.rs"
+
 [dependencies]
 skia-safe = { version = "0.78", features = ["textlayout"] }
 winit = { version = "0.30", features = ["wayland", "x11"] }
@@ -22,6 +26,7 @@ softbuffer = "0.4"
 resvg = "0.42"
 usvg = "0.42"
 tiny-skia = "0.11"
+image = "0.25"
 
 [target.'cfg(windows)'.dependencies]
 windows = { version = "0.58", features = [
@@ -29,4 +34,9 @@ windows = { version = "0.58", features = [
     "Win32_Graphics_Dwm",
     "Win32_UI_WindowsAndMessaging",
     "Win32_UI_Shell",
+    "Win32_UI_Shell_Common",
+    "Win32_System_Com",
 ] }
+
+[build-dependencies]
+embed-resource = "2.4"

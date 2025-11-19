@@ -1,6 +1,6 @@
 use skia_safe::{Canvas, Color, Paint, Rect};
 use crate::core::FontManager;
-use crate::components::Widget;
+use crate::components::{Widget, Icon, IconSize, CodiconIcons};
 use crate::theme::current_theme;
 
 #[cfg(target_os = "windows")]
@@ -283,10 +283,15 @@ pub struct TitleBar {
     width: f32,
     height: f32,
     title: String,
+    project_name: String,
     minimize_btn: WindowControlButton,
     maximize_btn: WindowControlButton,
     close_btn: WindowControlButton,
     is_maximized: bool,
+    show_menubar: bool,
+    menubar_width: f32,
+    search_text: String,
+    search_focused: bool,
 }
 
 impl TitleBar {
@@ -304,11 +309,30 @@ impl TitleBar {
             width,
             height,
             title: title.to_string(),
+            project_name: "mikoui2".to_string(),
             minimize_btn: WindowControlButton::new(minimize_x, y, button_width, button_height, WindowControl::Minimize),
             maximize_btn: WindowControlButton::new(maximize_x, y, button_width, button_height, WindowControl::Maximize),
             close_btn: WindowControlButton::new(close_x, y, button_width, button_height, WindowControl::Close),
             is_maximized: false,
+            show_menubar: false,
+            menubar_width: 0.0,
+            search_text: String::new(),
+            search_focused: false,
         }
+    }
+    
+    pub fn set_project_name(&mut self, name: &str) {
+        self.project_name = name.to_string();
+    }
+    
+    pub fn with_menubar(mut self, menubar_width: f32) -> Self {
+        self.show_menubar = true;
+        self.menubar_width = menubar_width;
+        self
+    }
+    
+    pub fn menubar_width(&self) -> f32 {
+        self.menubar_width
     }
     
     pub fn set_maximized(&mut self, maximized: bool) {
@@ -342,15 +366,37 @@ impl TitleBar {
         self.minimize_btn.x = minimize_x;
     }
     
-    /// Check if a point is in the draggable area (not on buttons)
+    /// Check if a point is in the draggable area (not on buttons or menubar)
     pub fn is_draggable_area(&self, x: f32, y: f32) -> bool {
+        // Must be within titlebar bounds
         if !self.contains(x, y) {
             return false;
         }
         
-        !self.minimize_btn.contains(x, y) 
-            && !self.maximize_btn.contains(x, y) 
-            && !self.close_btn.contains(x, y)
+        // Exclude window control buttons
+        if self.minimize_btn.contains(x, y) 
+            || self.maximize_btn.contains(x, y) 
+            || self.close_btn.contains(x, y) {
+            return false;
+        }
+        
+        // Exclude menubar area if enabled (only the left portion where menu items are)
+        // Add some padding to make it easier to drag
+        if self.show_menubar && x >= self.x && x <= self.x + self.menubar_width {
+            return false;
+        }
+        
+        // Everything else in the titlebar is draggable
+        true
+    }
+    
+    /// Check if a point is in the menubar area
+    pub fn is_menubar_area(&self, x: f32, y: f32) -> bool {
+        if !self.show_menubar {
+            return false;
+        }
+        
+        self.contains(x, y) && x >= self.x && x <= self.x + self.menubar_width
     }
     
     /// Get the bounds of the maximize button (for Windows 11 snap layouts)
@@ -398,17 +444,136 @@ impl Widget for TitleBar {
         let rect = Rect::from_xywh(self.x, self.y, self.width, self.height);
         canvas.draw_rect(rect, &bg_paint);
         
-        // Title text
-        let title_x = self.x + 12.0;
-        let font_size = 12.0;
-        let title_y = self.y + (self.height + font_size) / 2.0 - 4.0;
+        // Calculate available space
+        let left_start = self.x + self.menubar_width + 16.0;
+        let right_end = self.minimize_btn.x - 16.0;
+        let center_y = self.y + self.height / 2.0;
         
-        let font = font_manager.create_font(&self.title, font_size, 600);
-        let mut text_paint = Paint::default();
-        text_paint.set_anti_alias(true);
-        text_paint.set_color(theme.foreground);
+        // Layout toggle buttons width (positioned on the right)
+        let layout_buttons_width = 100.0;
+        let layout_start_pos = right_end - layout_buttons_width;
         
-        canvas.draw_str(&self.title, (title_x, title_y), &font, &text_paint);
+        // Center section: Navigation buttons + Search bar
+        let nav_button_size = 24.0;
+        let nav_button_gap = 4.0;
+        let gap_between_nav_and_search = 8.0;
+        let max_search_width = 400.0;
+        let search_height = 26.0;
+        
+        // Calculate available width for centering
+        let available_width = layout_start_pos - left_start;
+        
+        // Center the search bar in the available space
+        let search_center_x = left_start + available_width / 2.0;
+        let search_start = search_center_x - max_search_width / 2.0;
+        
+        // Position navigation buttons to the left of the search bar
+        let forward_x = search_start - gap_between_nav_and_search - nav_button_size;
+        let back_x = forward_x - nav_button_gap - nav_button_size;
+        
+        // Draw back button background
+        // let back_rect = Rect::from_xywh(back_x, center_y - nav_button_size / 2.0, nav_button_size, nav_button_size);
+        // let mut nav_paint = Paint::default();
+        // nav_paint.set_anti_alias(true);
+        // nav_paint.set_color(theme.muted);
+        // canvas.draw_round_rect(back_rect, 4.0, 4.0, &nav_paint);
+        
+        // Draw back icon
+        let back_icon = Icon::new(
+            back_x + 0.0,
+            center_y - 8.0,
+            CodiconIcons::CHEVRON_LEFT,
+            IconSize::Small,
+            theme.muted_foreground,
+        );
+        back_icon.draw(canvas, font_manager);
+        
+        // Draw forward button background
+        // let forward_rect = Rect::from_xywh(forward_x, center_y - nav_button_size / 2.0, nav_button_size, nav_button_size);
+        // canvas.draw_round_rect(forward_rect, 4.0, 4.0, &nav_paint);
+        
+        // Draw forward icon
+        let forward_icon = Icon::new(
+            forward_x + 0.0,
+            center_y - 8.0,
+            CodiconIcons::CHEVRON_RIGHT,
+            IconSize::Small,
+            theme.muted_foreground,
+        );
+        forward_icon.draw(canvas, font_manager);
+        
+        // Search bar - already calculated above
+        let search_width = max_search_width;
+        let search_rect = Rect::from_xywh(
+            search_start,
+            center_y - search_height / 2.0,
+            search_width,
+            search_height,
+        );
+        
+        // Search bar background
+        let mut search_bg = Paint::default();
+        search_bg.set_anti_alias(true);
+        search_bg.set_color(theme.input);
+        canvas.draw_round_rect(search_rect, 4.0, 4.0, &search_bg);
+        
+        // Search bar border
+        let mut search_border = Paint::default();
+        search_border.set_anti_alias(true);
+        search_border.set_color(theme.border);
+        search_border.set_style(skia_safe::PaintStyle::Stroke);
+        search_border.set_stroke_width(1.0);
+        canvas.draw_round_rect(search_rect, 4.0, 4.0, &search_border);
+        
+        // Project name and search text
+        let search_font = font_manager.create_font(&self.project_name, 12.0, 400);
+        let mut search_text_paint = Paint::default();
+        search_text_paint.set_anti_alias(true);
+        search_text_paint.set_color(theme.foreground);
+        canvas.draw_str(
+            &self.project_name,
+            (search_start + 8.0, center_y + 4.0),
+            &search_font,
+            &search_text_paint,
+        );
+        
+        // Layout toggle buttons - positioned on the right
+        let layout_button_size = 28.0;
+        let layout_button_gap = 4.0;
+        let layout_start = right_end - layout_buttons_width + 8.0;
+        
+        // Layout button icons: sidebar-left, sidebar-right, panel-bottom
+        let layout_icons = [
+            CodiconIcons::LAYOUT_SIDEBAR_LEFT,
+            CodiconIcons::LAYOUT_PANEL,
+            CodiconIcons::LAYOUT_SIDEBAR_RIGHT,
+        ];
+        
+        for (i, icon) in layout_icons.iter().enumerate() {
+            let button_x = layout_start + (i as f32 * (layout_button_size + layout_button_gap));
+            let button_rect = Rect::from_xywh(
+                button_x,
+                center_y - layout_button_size / 2.0,
+                layout_button_size,
+                layout_button_size,
+            );
+            
+            // Button background
+            // let mut layout_paint = Paint::default();
+            // layout_paint.set_anti_alias(true);
+            // layout_paint.set_color(theme.muted);
+            // canvas.draw_round_rect(button_rect, 4.0, 4.0, &layout_paint);
+            
+            // Button icon
+            let layout_icon = Icon::new(
+                button_x + 6.0,
+                center_y - 8.0,
+                icon,
+                IconSize::Small,
+                theme.muted_foreground,
+            );
+            layout_icon.draw(canvas, font_manager);
+        }
         
         // Draw window control buttons
         self.minimize_btn.draw(canvas, font_manager);

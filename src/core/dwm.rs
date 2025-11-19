@@ -80,11 +80,40 @@ pub mod windows {
         }
     }
     
-    /// Apply modern window styling (rounded corners + shadow)
+    /// Enable resize for borderless window
+    /// This sets the window style to allow resizing even without decorations
+    pub fn enable_borderless_resize(hwnd: isize) -> bool {
+        unsafe {
+            use windows::Win32::UI::WindowsAndMessaging::{
+                GetWindowLongPtrW, SetWindowLongPtrW, GWL_STYLE, WS_THICKFRAME, WS_CAPTION, 
+                WS_SYSMENU, WS_MAXIMIZEBOX, WS_MINIMIZEBOX,
+            };
+            
+            let hwnd = HWND(hwnd as *mut std::ffi::c_void);
+            
+            // Get current style
+            let mut style = GetWindowLongPtrW(hwnd, GWL_STYLE);
+            
+            // Add thick frame for resizing, but keep it borderless
+            style |= WS_THICKFRAME.0 as isize;
+            style |= WS_CAPTION.0 as isize;
+            style |= WS_SYSMENU.0 as isize;
+            style |= WS_MAXIMIZEBOX.0 as isize;
+            style |= WS_MINIMIZEBOX.0 as isize;
+            
+            // Set the new style
+            SetWindowLongPtrW(hwnd, GWL_STYLE, style);
+            
+            true
+        }
+    }
+    
+    /// Apply modern window styling (rounded corners + shadow + resize)
     pub fn apply_modern_window_style(hwnd: isize) -> bool {
         let shadow = enable_window_shadow(hwnd);
         let corners = set_window_corner_preference(hwnd, CornerPreference::Round);
-        shadow && corners
+        let resize = enable_borderless_resize(hwnd);
+        shadow && corners && resize
     }
 }
 
@@ -111,6 +140,10 @@ pub mod windows {
         false
     }
 
+    pub fn enable_borderless_resize(_hwnd: isize) -> bool {
+        false
+    }
+    
     pub fn apply_modern_window_style(_hwnd: isize) -> bool {
         false
     }
