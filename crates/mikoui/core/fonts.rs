@@ -30,6 +30,9 @@ pub struct FontManager {
     // Primary system font
     primary_typeface: Option<Typeface>,
     
+    // Monospace font for code
+    monospace_typeface: Option<Typeface>,
+    
     // Language-specific fonts
     thai_typeface: Option<Typeface>,
     cjk_typeface: Option<Typeface>,
@@ -40,17 +43,20 @@ pub struct FontManager {
     
     // Font cache
     font_cache: HashMap<(Language, i32, i32), Font>,
+    mono_font_cache: HashMap<(i32, i32), Font>,
 }
 
 impl FontManager {
     pub fn new() -> Self {
         let mut manager = Self {
             primary_typeface: None,
+            monospace_typeface: None,
             thai_typeface: None,
             cjk_typeface: None,
             arabic_typeface: None,
             font_mgr: FontMgr::new(),
             font_cache: HashMap::new(),
+            mono_font_cache: HashMap::new(),
         };
         
         manager.load_fonts();
@@ -60,6 +66,9 @@ impl FontManager {
     fn load_fonts(&mut self) {
         // Load system default font based on platform
         self.load_system_font();
+        
+        // Load monospace font for code
+        self.load_monospace_font();
         
         // Try to load Thai fonts from system
         self.load_thai_fonts();
@@ -93,6 +102,28 @@ impl FontManager {
         println!("⚠ No system font found, using default");
     }
     
+    fn load_monospace_font(&mut self) {
+        // Platform-specific monospace fonts
+        let mono_fonts = if cfg!(target_os = "windows") {
+            vec!["Consolas", "Cascadia Code", "Cascadia Mono", "Courier New"]
+        } else if cfg!(target_os = "macos") {
+            vec!["SF Mono", "Menlo", "Monaco", "Courier New"]
+        } else {
+            // Linux
+            vec!["JetBrains Mono", "Fira Code", "Ubuntu Mono", "DejaVu Sans Mono", "Liberation Mono", "Courier New"]
+        };
+        
+        for font_name in mono_fonts {
+            if let Some(typeface) = self.font_mgr.match_family_style(font_name, FontStyle::normal()) {
+                println!("✓ Loaded monospace font: {}", font_name);
+                self.monospace_typeface = Some(typeface);
+                return;
+            }
+        }
+        
+        println!("⚠ No monospace font found, using primary font");
+    }
+    
     /// Set custom primary font (e.g., Inter Variable from app)
     pub fn set_primary_font(&mut self, font_data: &[u8]) -> bool {
         let data = Data::new_copy(font_data);
@@ -111,11 +142,11 @@ impl FontManager {
     fn load_thai_fonts(&mut self) {
         // Try multiple Thai fonts in order of preference
         let thai_fonts = if cfg!(target_os = "windows") {
-            vec!["Leelawadee UI", "Leelawadee", "Tahoma"]
+            vec!["Leelawadee UI", "Leelawadee", "Noto Sans Thai", "Tahoma"]
         } else if cfg!(target_os = "macos") {
-            vec!["Thonburi", "Sukhumvit Set", "Ayuthaya"]
+            vec!["Thonburi", "Sukhumvit Set", "Noto Sans Thai", "Ayuthaya"]
         } else {
-            vec!["Noto Sans Thai", "Loma", "Garuda"]
+            vec!["Noto Sans Thai", "Loma", "Garuda", "Sarabun"]
         };
         
         for font_name in thai_fonts {
@@ -126,23 +157,17 @@ impl FontManager {
             }
         }
         
-        // Fallback to Noto Sans Thai if available
-        if let Some(typeface) = self.font_mgr.match_family_style("Noto Sans Thai", FontStyle::normal()) {
-            println!("✓ Loaded Thai font: Noto Sans Thai (fallback)");
-            self.thai_typeface = Some(typeface);
-        } else {
-            println!("⚠ No Thai font found, using primary font");
-        }
+        println!("⚠ No Thai font found, using primary font as fallback");
     }
     
     fn load_cjk_fonts(&mut self) {
         // Try CJK fonts
         let cjk_fonts = if cfg!(target_os = "windows") {
-            vec!["Microsoft YaHei", "MS Gothic", "Malgun Gothic", "Yu Gothic"]
+            vec!["Microsoft YaHei", "MS Gothic", "Malgun Gothic", "Yu Gothic", "Noto Sans CJK JP"]
         } else if cfg!(target_os = "macos") {
-            vec!["PingFang SC", "Hiragino Sans", "Apple SD Gothic Neo"]
+            vec!["PingFang SC", "Hiragino Sans", "Apple SD Gothic Neo", "Noto Sans CJK JP"]
         } else {
-            vec!["Noto Sans CJK", "Noto Sans JP", "Noto Sans KR", "Noto Sans SC"]
+            vec!["Noto Sans CJK JP", "Noto Sans JP", "Noto Sans KR", "Noto Sans SC", "WenQuanYi Micro Hei"]
         };
         
         for font_name in cjk_fonts {
@@ -153,17 +178,17 @@ impl FontManager {
             }
         }
         
-        println!("⚠ No CJK font found, using primary font");
+        println!("⚠ No CJK font found, using primary font as fallback");
     }
     
     fn load_arabic_fonts(&mut self) {
         // Try Arabic fonts
         let arabic_fonts = if cfg!(target_os = "windows") {
-            vec!["Segoe UI", "Tahoma", "Arial"]
+            vec!["Segoe UI", "Noto Sans Arabic", "Tahoma", "Arial"]
         } else if cfg!(target_os = "macos") {
-            vec!["Geeza Pro", "Baghdad", "Damascus"]
+            vec!["Geeza Pro", "Noto Sans Arabic", "Baghdad", "Damascus"]
         } else {
-            vec!["Noto Sans Arabic", "DejaVu Sans"]
+            vec!["Noto Sans Arabic", "DejaVu Sans", "FreeSans"]
         };
         
         for font_name in arabic_fonts {
@@ -174,7 +199,7 @@ impl FontManager {
             }
         }
         
-        println!("⚠ No Arabic font found, using primary font");
+        println!("⚠ No Arabic font found, using primary font as fallback");
     }
     
     /// Detect language from text content
@@ -199,20 +224,23 @@ impl FontManager {
         Language::English
     }
     
-    /// Get appropriate typeface for language
+    /// Get appropriate typeface for language with fallback chain
     fn get_typeface_for_language(&self, language: Language) -> &Typeface {
         match language {
             Language::Thai => {
+                // Try Thai font first, then primary
                 self.thai_typeface.as_ref()
                     .or(self.primary_typeface.as_ref())
                     .expect("No typeface available")
             }
             Language::Japanese | Language::Korean | Language::Chinese => {
+                // Try CJK font first, then primary
                 self.cjk_typeface.as_ref()
                     .or(self.primary_typeface.as_ref())
                     .expect("No typeface available")
             }
             Language::Arabic | Language::Hebrew => {
+                // Try Arabic font first, then primary
                 self.arabic_typeface.as_ref()
                     .or(self.primary_typeface.as_ref())
                     .expect("No typeface available")
@@ -222,6 +250,43 @@ impl FontManager {
                     .expect("No primary typeface available")
             }
         }
+    }
+    
+    /// Match a typeface that can render the given character
+    pub fn match_char_typeface(&self, ch: char) -> Option<Typeface> {
+        // Detect language from character
+        let language = Self::detect_language(&ch.to_string());
+        
+        // Get the appropriate typeface for this language
+        let typeface = self.get_typeface_for_language(language);
+        
+        // Check if the typeface has the glyph for this character
+        let glyph_id = typeface.unichar_to_glyph(ch as i32);
+        if glyph_id != 0 {
+            return Some(typeface.clone());
+        }
+        
+        // Fallback: try all available typefaces
+        if let Some(ref thai_tf) = self.thai_typeface {
+            if thai_tf.unichar_to_glyph(ch as i32) != 0 {
+                return Some(thai_tf.clone());
+            }
+        }
+        
+        if let Some(ref cjk_tf) = self.cjk_typeface {
+            if cjk_tf.unichar_to_glyph(ch as i32) != 0 {
+                return Some(cjk_tf.clone());
+            }
+        }
+        
+        if let Some(ref arabic_tf) = self.arabic_typeface {
+            if arabic_tf.unichar_to_glyph(ch as i32) != 0 {
+                return Some(arabic_tf.clone());
+            }
+        }
+        
+        // Last resort: use primary typeface
+        self.primary_typeface.clone()
     }
     
     /// Create font with Variable Font support and language detection
@@ -310,14 +375,58 @@ impl FontManager {
         font
     }
     
+    /// Create monospace font for code/terminal
+    pub fn create_mono_font(&mut self, size: f32, weight: i32) -> Font {
+        // Check cache first
+        let cache_key = (size as i32, weight);
+        if let Some(font) = self.mono_font_cache.get(&cache_key) {
+            return font.clone();
+        }
+        
+        let typeface = self.monospace_typeface.as_ref()
+            .or(self.primary_typeface.as_ref())
+            .expect("No typeface available");
+        
+        let mut font = Font::from_typeface(typeface, size);
+        
+        // Optimized settings for monospace fonts
+        font.set_edging(skia_safe::font::Edging::SubpixelAntiAlias);
+        font.set_subpixel(true);
+        font.set_linear_metrics(false); // Disable for monospace to maintain grid alignment
+        font.set_hinting(skia_safe::FontHinting::Slight); // Slight hinting for better readability
+        font.set_force_auto_hinting(false);
+        font.set_embedded_bitmaps(false);
+        font.set_baseline_snap(true); // Enable for monospace to maintain alignment
+        
+        // Cache the font
+        self.mono_font_cache.insert(cache_key, font.clone());
+        font
+    }
+    
+    /// Set custom monospace font (e.g., JetBrains Mono, Fira Code)
+    pub fn set_monospace_font(&mut self, font_data: &[u8]) -> bool {
+        let data = Data::new_copy(font_data);
+        
+        if let Some(typeface) = self.font_mgr.new_from_data(&data, None) {
+            println!("✓ Loaded custom monospace font ({} bytes)", font_data.len());
+            self.monospace_typeface = Some(typeface);
+            self.mono_font_cache.clear(); // Clear cache to use new font
+            true
+        } else {
+            println!("✗ Failed to load custom monospace font");
+            false
+        }
+    }
+    
     /// Clear font cache
     pub fn clear_cache(&mut self) {
         self.font_cache.clear();
+        self.mono_font_cache.clear();
     }
     
     /// Get cache size
     pub fn cache_size(&self) -> usize {
-        self.font_cache.len()
+        self.font_cache.len() + self.mono_font_cache.len()
     }
 }
 

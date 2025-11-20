@@ -113,25 +113,36 @@ pub mod windows {
     /// Open a folder picker dialog
     pub fn open_folder_dialog(title: &str) -> Option<PathBuf> {
         unsafe {
+            println!("Initializing COM...");
             let _ = CoInitializeEx(None, COINIT_APARTMENTTHREADED);
 
+            println!("Creating file dialog...");
             let dialog: IFileOpenDialog = CoCreateInstance(&FileOpenDialog, None, CLSCTX_ALL).ok()?;
+            println!("File dialog created successfully");
 
             let title_wide: Vec<u16> = title.encode_utf16().chain(std::iter::once(0)).collect();
             let _ = dialog.SetTitle(PWSTR(title_wide.as_ptr() as *mut u16));
 
             // Set options for folder picking
+            println!("Setting folder picker options...");
             if let Ok(options) = dialog.GetOptions() {
                 let _ = dialog.SetOptions(options | FOS_PICKFOLDERS | FOS_FORCEFILESYSTEM);
+                println!("Options set successfully");
             }
 
+            println!("Showing dialog...");
             if dialog.Show(None).is_ok() {
+                println!("Dialog shown successfully, getting result...");
                 if let Ok(item) = dialog.GetResult() {
                     if let Ok(path_pwstr) = item.GetDisplayName(windows::Win32::UI::Shell::SIGDN_FILESYSPATH) {
-                        let path_str = path_pwstr.to_string().ok()?;
-                        return Some(PathBuf::from(path_str));
+                        if let Ok(path_str) = path_pwstr.to_string() {
+                            println!("Got path: {}", path_str);
+                            return Some(PathBuf::from(path_str));
+                        }
                     }
                 }
+            } else {
+                println!("Dialog was cancelled or failed to show");
             }
 
             None

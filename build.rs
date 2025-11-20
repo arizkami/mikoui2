@@ -105,7 +105,7 @@ fn main() {
     let profile = env::var("PROFILE").unwrap_or_else(|_| "debug".to_string());
     let build_dir = Path::new("build").join(&profile);
     let shared_src = Path::new("shared");
-    let shared_dst = build_dir.join("shared");
+    let shared_dst = build_dir.join("bin/shared");
     
     // Create build directory structure
     if let Err(e) = fs::create_dir_all(&build_dir) {

@@ -49,13 +49,13 @@ pub mod windows_titlebar {
                 TPM_RETURNCMD | TPM_RIGHTBUTTON,
                 x,
                 y,
-                0,
+                None, // reserved parameter
                 hwnd,
                 None,
             );
             
-            if cmd.0 != 0 {
-                SendMessageW(hwnd, WM_SYSCOMMAND, WPARAM(cmd.0 as usize), LPARAM(0));
+            if cmd.as_bool() {
+                let _ = SendMessageW(hwnd, WM_SYSCOMMAND, Some(WPARAM(cmd.0 as usize)), Some(LPARAM(0)));
                 true
             } else {
                 false
@@ -300,6 +300,9 @@ pub struct TitleBar {
     menubar_width: f32,
     search_text: String,
     search_focused: bool,
+    search_icon_hover: bool,
+    search_icon_hover_progress: f32,
+    command_palette_open: bool,
 }
 
 impl TitleBar {
@@ -317,7 +320,7 @@ impl TitleBar {
             width,
             height,
             title: title.to_string(),
-            project_name: "mikoui2".to_string(),
+            project_name: title.to_string(), // Use the title parameter as project name
             minimize_btn: WindowControlButton::new(minimize_x, y, button_width, button_height, WindowControl::Minimize),
             maximize_btn: WindowControlButton::new(maximize_x, y, button_width, button_height, WindowControl::Maximize),
             close_btn: WindowControlButton::new(close_x, y, button_width, button_height, WindowControl::Close),
@@ -326,6 +329,9 @@ impl TitleBar {
             menubar_width: 0.0,
             search_text: String::new(),
             search_focused: false,
+            search_icon_hover: false,
+            search_icon_hover_progress: 0.0,
+            command_palette_open: false,
         }
     }
     
@@ -359,6 +365,39 @@ impl TitleBar {
     
     pub fn set_title(&mut self, title: &str) {
         self.title = title.to_string();
+    }
+    
+    pub fn set_command_palette_open(&mut self, open: bool) {
+        self.command_palette_open = open;
+    }
+    
+    pub fn is_search_bar_clicked(&self, x: f32, y: f32) -> bool {
+        let (search_x, search_y, search_w, search_h) = self.get_search_bar_bounds();
+        x >= search_x && x <= search_x + search_w && y >= search_y && y <= search_y + search_h
+    }
+    
+    fn get_search_bar_bounds(&self) -> (f32, f32, f32, f32) {
+        let left_start = self.x + self.menubar_width + 16.0;
+        let right_end = self.minimize_btn.x - 16.0;
+        let layout_buttons_width = 100.0;
+        let layout_start_pos = right_end - layout_buttons_width;
+        let available_width = layout_start_pos - left_start;
+        
+        let max_search_width = 400.0;
+        let search_height = 26.0;
+        let search_center_x = left_start + available_width / 2.0;
+        let search_start = search_center_x - max_search_width / 2.0;
+        let center_y = self.y + self.height / 2.0;
+        
+        (search_start, center_y - search_height / 2.0, max_search_width, search_height)
+    }
+    
+    fn get_search_icon_bounds(&self) -> (f32, f32, f32, f32) {
+        let (search_x, search_y, _search_w, search_h) = self.get_search_bar_bounds();
+        let icon_size = 16.0;
+        let icon_x = search_x + 8.0;
+        let icon_y = search_y + (search_h - icon_size) / 2.0;
+        (icon_x, icon_y, icon_size, icon_size)
     }
     
     pub fn update_size(&mut self, width: f32) {
@@ -552,28 +591,61 @@ impl Widget for TitleBar {
             search_height,
         );
         
+        // Calculate opacity based on command palette state
+        let search_opacity = if self.command_palette_open { 0.0 } else { 1.0 };
+        
+        // Draw hover background on entire search bar
+        if self.search_icon_hover_progress > 0.0 {
+            let hover_alpha = (30.0 * self.search_icon_hover_progress * search_opacity) as u8;
+            let mut hover_paint = Paint::default();
+            hover_paint.set_anti_alias(true);
+            let muted = theme.muted;
+            hover_paint.set_color(Color::from_argb(hover_alpha, muted.r(), muted.g(), muted.b()));
+            canvas.draw_round_rect(search_rect, 4.0, 4.0, &hover_paint);
+        }
+        
         // Search bar background
         let mut search_bg = Paint::default();
         search_bg.set_anti_alias(true);
-        search_bg.set_color(theme.input);
+        let input_color = theme.input;
+        let bg_alpha = (input_color.a() as f32 * search_opacity) as u8;
+        search_bg.set_color(Color::from_argb(bg_alpha, input_color.r(), input_color.g(), input_color.b()));
         canvas.draw_round_rect(search_rect, 4.0, 4.0, &search_bg);
         
         // Search bar border
         let mut search_border = Paint::default();
         search_border.set_anti_alias(true);
-        search_border.set_color(theme.border);
+        let border_color = theme.border;
+        let border_alpha = (border_color.a() as f32 * search_opacity) as u8;
+        search_border.set_color(Color::from_argb(border_alpha, border_color.r(), border_color.g(), border_color.b()));
         search_border.set_style(skia_safe::PaintStyle::Stroke);
         search_border.set_stroke_width(1.0);
         canvas.draw_round_rect(search_rect, 4.0, 4.0, &search_border);
+        
+        // Draw search icon inside the search bar
+        let (icon_x, icon_y, _icon_w, _icon_h) = self.get_search_icon_bounds();
+        let muted_fg = theme.muted_foreground;
+        let icon_alpha = (muted_fg.a() as f32 * search_opacity) as u8;
+        let icon_color = Color::from_argb(icon_alpha, muted_fg.r(), muted_fg.g(), muted_fg.b());
+        let search_icon = Icon::new(
+            icon_x,
+            icon_y,
+            CodiconIcons::SEARCH,
+            IconSize::Small,
+            icon_color,
+        );
+        search_icon.draw(canvas, font_manager);
         
         // Project name and search text
         let search_font = font_manager.create_font(&self.project_name, 12.0, 400);
         let mut search_text_paint = Paint::default();
         search_text_paint.set_anti_alias(true);
-        search_text_paint.set_color(theme.foreground);
+        let fg_color = theme.foreground;
+        let text_alpha = (fg_color.a() as f32 * search_opacity) as u8;
+        search_text_paint.set_color(Color::from_argb(text_alpha, fg_color.r(), fg_color.g(), fg_color.b()));
         canvas.draw_str(
             &self.project_name,
-            (search_start + 8.0, center_y + 4.0),
+            (search_start + 36.0, center_y + 4.0),
             &search_font,
             &search_text_paint,
         );
@@ -643,12 +715,24 @@ impl Widget for TitleBar {
         self.minimize_btn.update_hover(x, y);
         self.maximize_btn.update_hover(x, y);
         self.close_btn.update_hover(x, y);
+        
+        // Update search bar hover (entire search bar is hoverable)
+        self.search_icon_hover = self.is_search_bar_clicked(x, y);
     }
     
     fn update_animation(&mut self, elapsed: f32) {
         self.minimize_btn.update_animation(elapsed);
         self.maximize_btn.update_animation(elapsed);
         self.close_btn.update_animation(elapsed);
+        
+        // Animate search icon hover
+        let target = if self.search_icon_hover { 1.0 } else { 0.0 };
+        let animation_speed = 0.2;
+        if (self.search_icon_hover_progress - target).abs() > 0.01 {
+            self.search_icon_hover_progress += (target - self.search_icon_hover_progress) * animation_speed;
+        } else {
+            self.search_icon_hover_progress = target;
+        }
     }
     
     fn on_click(&mut self) {

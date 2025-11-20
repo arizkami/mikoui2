@@ -550,3 +550,36 @@ impl Widget for MenuBar {
         self
     }
 }
+
+// Additional MenuBar methods
+impl MenuBar {
+    /// Handle click and return the clicked item ID if a menu item was clicked
+    pub fn handle_click(&mut self) -> Option<i32> {
+        // Check if clicking on menubar item
+        if let Some(menu_index) = self.hover_menu {
+            if self.active_menu == Some(menu_index) {
+                self.active_menu = None;
+            } else {
+                self.active_menu = Some(menu_index);
+            }
+            return None;
+        }
+
+        // Check if clicking on dropdown item
+        if let Some(menu_index) = self.active_menu {
+            if let Some(item_index) = self.hover_item {
+                if menu_index < self.menus.len() && item_index < self.menus[menu_index].items.len() {
+                    let item = &self.menus[menu_index].items[item_index];
+                    if !item.disabled {
+                        println!("Menu item clicked: {} (id: {})", item.label, item.id);
+                        let item_id = item.id as i32;
+                        self.active_menu = None;
+                        return Some(item_id);
+                    }
+                }
+            }
+        }
+        
+        None
+    }
+}

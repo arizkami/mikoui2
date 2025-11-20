@@ -1,10 +1,12 @@
 use mikoui::{Widget, FontManager};
 use mikoui::theme::current_theme;
 use skia_safe::{Canvas, Color, Paint, Rect};
+use crate::pages::Explorer;
 
 const RESIZE_HANDLE_WIDTH: f32 = 4.0;
 const MIN_WIDTH: f32 = 200.0;
 const MAX_WIDTH: f32 = 600.0;
+const HEADER_HEIGHT: f32 = 32.0;
 
 pub struct LeftPanel {
     x: f32,
@@ -13,17 +15,49 @@ pub struct LeftPanel {
     height: f32,
     is_resizing: bool,
     hover_resize: bool,
+    explorer: Explorer,
 }
 
 impl LeftPanel {
     pub fn new(x: f32, y: f32, width: f32, height: f32) -> Self {
+        let clamped_width = width.clamp(MIN_WIDTH, MAX_WIDTH);
+        let explorer = Explorer::new(
+            x,
+            y + HEADER_HEIGHT,
+            clamped_width,
+            height - HEADER_HEIGHT,
+        );
+        
         Self {
             x,
             y,
-            width: width.clamp(MIN_WIDTH, MAX_WIDTH),
+            width: clamped_width,
             height,
             is_resizing: false,
             hover_resize: false,
+            explorer,
+        }
+    }
+    
+    pub fn new_with_path(x: f32, y: f32, width: f32, height: f32, root_path: std::path::PathBuf) -> Self {
+        println!("LeftPanel::new_with_path called with: {}", root_path.display());
+        let clamped_width = width.clamp(MIN_WIDTH, MAX_WIDTH);
+        let explorer = crate::pages::Explorer::new_with_path(
+            x,
+            y + HEADER_HEIGHT,
+            clamped_width,
+            height - HEADER_HEIGHT,
+            root_path,
+        );
+        
+        Self {
+            x,
+            y,
+            width: clamped_width,
+            height,
+            is_resizing: false,
+            hover_resize: false,
+            explorer,
         }
     }
     
@@ -33,6 +67,12 @@ impl LeftPanel {
     
     pub fn set_height(&mut self, height: f32) {
         self.height = height;
+        self.explorer.set_bounds(
+            self.x,
+            self.y + HEADER_HEIGHT,
+            self.width,
+            height - HEADER_HEIGHT,
+        );
     }
     
     pub fn resize_handle_rect(&self) -> Rect {
@@ -60,10 +100,24 @@ impl LeftPanel {
     pub fn resize_to(&mut self, x: f32) {
         let new_width = (x - self.x).clamp(MIN_WIDTH, MAX_WIDTH);
         self.width = new_width;
+        self.explorer.set_bounds(
+            self.x,
+            self.y + HEADER_HEIGHT,
+            new_width,
+            self.height - HEADER_HEIGHT,
+        );
     }
     
     pub fn is_resizing(&self) -> bool {
         self.is_resizing
+    }
+    
+    pub fn explorer(&self) -> &Explorer {
+        &self.explorer
+    }
+    
+    pub fn explorer_mut(&mut self) -> &mut Explorer {
+        &mut self.explorer
     }
 }
 
@@ -103,19 +157,42 @@ impl Widget for LeftPanel {
             canvas.draw_rect(handle_rect, &handle_paint);
         }
         
-        // Placeholder content
-        let text = "Left Panel";
-        let font = font_manager.create_font(text, 14.0, 400);
+        // Header - show "EXPLORER" label
+        let text = "EXPLORER";
+        let font = font_manager.create_font(text, 11.0, 600);
         let mut text_paint = Paint::default();
         text_paint.set_color(theme.muted_foreground);
         text_paint.set_anti_alias(true);
         
         canvas.draw_str(
             text,
-            (self.x + 16.0, self.y + 32.0),
+            (self.x + 16.0, self.y + 20.0),
             &font,
             &text_paint,
         );
+        
+        // Show current folder path if available
+        if self.explorer.has_root() {
+            let folder_name = self.explorer.get_root_name();
+            let folder_font = font_manager.create_font(&folder_name, 12.0, 400);
+            let mut folder_paint = Paint::default();
+            folder_paint.set_color(theme.foreground);
+            folder_paint.set_anti_alias(true);
+            
+            // Draw folder name on the right side of header
+            let text_width = folder_font.measure_str(&folder_name, Some(&folder_paint)).0;
+            let x_pos = self.x + self.width - text_width - 16.0;
+            
+            canvas.draw_str(
+                &folder_name,
+                (x_pos, self.y + 20.0),
+                &folder_font,
+                &folder_paint,
+            );
+        }
+        
+        // Draw explorer
+        self.explorer.draw(canvas, font_manager);
     }
     
     fn contains(&self, x: f32, y: f32) -> bool {
@@ -124,14 +201,20 @@ impl Widget for LeftPanel {
     
     fn update_hover(&mut self, x: f32, y: f32) {
         self.hover_resize = self.is_over_resize_handle(x, y);
+        
+        // Update explorer hover if not resizing
+        if !self.hover_resize {
+            self.explorer.update_hover(x, y);
+        }
     }
     
     fn update_animation(&mut self, _elapsed: f32) {
-        // No animation for now
+        self.explorer.update_animation(_elapsed);
     }
     
     fn on_click(&mut self) {
-        // Handle clicks if needed
+        // Forward click to explorer
+        self.explorer.on_click();
     }
     
     fn as_any(&self) -> &dyn std::any::Any {
