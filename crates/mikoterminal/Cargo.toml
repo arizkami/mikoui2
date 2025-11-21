@@ -8,6 +8,9 @@ license.workspace = true
 [lib]
 name = "mikoterminal"
 path = "lib.rs"
+crate-type = ["rlib"]  # Static library (cdylib causes linking issues with Skia's C++ dependencies)
+
+[build-dependencies]
 
 [dependencies]
 # For terminal rendering
@@ -15,3 +18,8 @@ skia-safe.workspace = true
 
 # For text handling
 unicode-width = "0.1"
+
+[target.'cfg(windows)'.dependencies]
+windows = { workspace = true, features = [
+    "Win32_System_Registry",  # Required for ICU in skia
+] }

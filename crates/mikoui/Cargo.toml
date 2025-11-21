@@ -8,6 +8,7 @@ license.workspace = true
 [lib]
 name = "mikoui"
 path = "lib.rs"
+crate-type = ["rlib"]  # Static library (cdylib causes linking issues with Skia's C++ dependencies)
 
 [[example]]
 name = "mikoui_example"

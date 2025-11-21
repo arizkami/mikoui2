@@ -2,6 +2,7 @@ use crate::tab::{EditorTab, TabManager};
 use crate::tabbar::TabBar;
 use crate::syntax::TokenType;
 use skia_safe::{Canvas, Color, Font, Paint, Rect};
+use mikoui::{current_theme, with_alpha};
 
 pub struct Editor {
     tab_manager: TabManager,
@@ -14,6 +15,7 @@ pub struct Editor {
     gutter_width: f32,
     cursor_blink_time: f32,
     show_cursor: bool,
+    is_selecting: bool,
 }
 
 impl Editor {
@@ -31,6 +33,7 @@ impl Editor {
             gutter_width: 60.0,
             cursor_blink_time: 0.0,
             show_cursor: true,
+            is_selecting: false,
         }
     }
     
@@ -73,8 +76,9 @@ impl Editor {
         let content_height = self.height - tab_bar_height;
         
         // Background
+        let theme = current_theme();
         let mut bg_paint = Paint::default();
-        bg_paint.set_color(Color::from_rgb(30, 30, 30));
+        bg_paint.set_color(theme.background);
         bg_paint.set_anti_alias(true);
         canvas.draw_rect(
             Rect::from_xywh(self.x, content_y, self.width, content_height),
@@ -85,7 +89,7 @@ impl Editor {
         if let Some(tab) = self.tab_manager.get_active_tab() {
             // Gutter background
             let mut gutter_paint = Paint::default();
-            gutter_paint.set_color(Color::from_rgb(40, 40, 40));
+            gutter_paint.set_color(theme.card);
             gutter_paint.set_anti_alias(true);
             canvas.draw_rect(
                 Rect::from_xywh(self.x, content_y, self.gutter_width, content_height),
@@ -106,12 +110,67 @@ impl Editor {
                 // Current line highlight
                 if line_idx == tab.cursor_line {
                     let mut current_line_paint = Paint::default();
-                    current_line_paint.set_color(Color::from_argb(20, 255, 255, 255));
+                    current_line_paint.set_color(with_alpha(theme.foreground, 20));
                     current_line_paint.set_anti_alias(true);
                     canvas.draw_rect(
                         Rect::from_xywh(self.x, y_pos - 15.0, self.width, self.line_height),
                         &current_line_paint,
                     );
+                }
+                
+                // Selection highlight
+                if let Some((sel_start_line, sel_start_col)) = tab.selection_start {
+                    let sel_end_line = tab.cursor_line;
+                    let sel_end_col = tab.cursor_column;
+                    
+                    // Normalize selection
+                    let ((start_line, start_col), (end_line, end_col)) = 
+                        if sel_start_line < sel_end_line || (sel_start_line == sel_end_line && sel_start_col < sel_end_col) {
+                            ((sel_start_line, sel_start_col), (sel_end_line, sel_end_col))
+                        } else {
+                            ((sel_end_line, sel_end_col), (sel_start_line, sel_start_col))
+                        };
+                    
+                    // Check if current line is within selection
+                    if line_idx >= start_line && line_idx <= end_line {
+                        if let Some(line) = tab.buffer.line(line_idx) {
+                            let line_chars: Vec<char> = line.chars().collect();
+                            let text_x = self.x + self.gutter_width + 10.0;
+                            
+                            let (sel_start_in_line, sel_end_in_line) = if line_idx == start_line && line_idx == end_line {
+                                // Single line selection
+                                (start_col, end_col)
+                            } else if line_idx == start_line {
+                                // First line of multi-line selection
+                                (start_col, line_chars.len())
+                            } else if line_idx == end_line {
+                                // Last line of multi-line selection
+                                (0, end_col)
+                            } else {
+                                // Middle line of multi-line selection
+                                (0, line_chars.len())
+                            };
+                            
+                            // Calculate selection rectangle
+                            let text_before: String = line_chars.iter().take(sel_start_in_line).collect();
+                            let selected_text: String = line_chars.iter()
+                                .skip(sel_start_in_line)
+                                .take(sel_end_in_line - sel_start_in_line)
+                                .collect();
+                            
+                            let start_x = text_x + mono_font.measure_str(&text_before, None).0;
+                            let sel_width = mono_font.measure_str(&selected_text, None).0;
+                            
+                            // Draw selection background
+                            let mut sel_paint = Paint::default();
+                            sel_paint.set_color(with_alpha(theme.primary, 80));
+                            sel_paint.set_anti_alias(true);
+                            canvas.draw_rect(
+                                Rect::from_xywh(start_x, y_pos - 15.0, sel_width, self.line_height),
+                                &sel_paint,
+                            );
+                        }
+                    }
                 }
                 
                 // Line number
@@ -121,9 +180,9 @@ impl Editor {
                 
                 let mut line_num_paint = Paint::default();
                 line_num_paint.set_color(if line_idx == tab.cursor_line {
-                    Color::from_rgb(200, 200, 200)
+                    theme.foreground
                 } else {
-                    Color::from_rgb(100, 100, 100)
+                    theme.muted_foreground
                 });
                 line_num_paint.set_anti_alias(true);
                 canvas.draw_str(&line_num, (line_num_x, y_pos), mono_font, &line_num_paint);
@@ -161,7 +220,7 @@ impl Editor {
                         if last_pos < highlight_start {
                             let text_before = &line_text[last_pos..highlight_start];
                             let mut text_paint = Paint::default();
-                            text_paint.set_color(Color::from_rgb(220, 220, 220));
+                            text_paint.set_color(theme.foreground);
                             text_paint.set_anti_alias(true);
                             canvas.draw_str(text_before, (current_x, y_pos), mono_font, &text_paint);
                             current_x += mono_font.measure_str(text_before, None).0;
@@ -183,7 +242,7 @@ impl Editor {
                     if last_pos < line_text.len() {
                         let remaining_text = &line_text[last_pos..];
                         let mut text_paint = Paint::default();
-                        text_paint.set_color(Color::from_rgb(220, 220, 220));
+                        text_paint.set_color(theme.foreground);
                         text_paint.set_anti_alias(true);
                         canvas.draw_str(remaining_text, (current_x, y_pos), mono_font, &text_paint);
                     }
@@ -206,48 +265,26 @@ impl Editor {
                 }
                 
                 let mut cursor_paint = Paint::default();
-                cursor_paint.set_color(Color::from_rgb(255, 255, 255));
+                cursor_paint.set_color(theme.foreground);
                 cursor_paint.set_anti_alias(true);
                 canvas.draw_rect(
                     Rect::from_xywh(cursor_x, cursor_y, 2.0, self.line_height - 4.0),
                     &cursor_paint,
                 );
             }
-            
-            // Draw status bar at the bottom
-            let status_bar_height = 24.0;
-            let status_bar_y = content_y + content_height - status_bar_height;
-            
-            // Status bar background
-            let mut status_bg = Paint::default();
-            status_bg.set_color(Color::from_rgb(0, 122, 204));
-            status_bg.set_anti_alias(true);
-            canvas.draw_rect(
-                Rect::from_xywh(self.x, status_bar_y, self.width, status_bar_height),
-                &status_bg,
-            );
-            
-            // Language indicator
-            let lang_text = tab.get_language_display();
-            let mut status_paint = Paint::default();
-            status_paint.set_color(Color::from_rgb(255, 255, 255));
-            status_paint.set_anti_alias(true);
-            canvas.draw_str(
-                &lang_text,
-                (self.x + 10.0, status_bar_y + 16.0),
-                ui_font,
-                &status_paint,
-            );
-            
-            // Cursor position
-            let cursor_info = format!("Ln {}, Col {}", tab.cursor_line + 1, tab.cursor_column + 1);
-            let cursor_info_width = ui_font.measure_str(&cursor_info, None).0;
-            canvas.draw_str(
-                &cursor_info,
-                (self.x + self.width - cursor_info_width - 10.0, status_bar_y + 16.0),
-                ui_font,
-                &status_paint,
-            );
+        }
+    }
+    
+    /// Get current editor info for status bar
+    pub fn get_editor_info(&self) -> Option<(String, usize, usize)> {
+        if let Some(tab) = self.tab_manager.get_active_tab() {
+            Some((
+                tab.get_language_display(),
+                tab.cursor_line + 1,
+                tab.cursor_column + 1,
+            ))
+        } else {
+            None
         }
     }
     
@@ -276,6 +313,11 @@ impl Editor {
     
     pub fn insert_char(&mut self, c: char) {
         if let Some(tab) = self.tab_manager.get_active_tab_mut() {
+            // If there's a selection, delete it first
+            if tab.has_selection() {
+                tab.delete_selection();
+            }
+            
             // Calculate character index from cursor position (using char count, not bytes)
             let mut char_idx = 0;
             for line_idx in 0..tab.cursor_line {
@@ -299,6 +341,14 @@ impl Editor {
     
     pub fn delete_char(&mut self) {
         if let Some(tab) = self.tab_manager.get_active_tab_mut() {
+            // If there's a selection, delete it instead
+            if tab.has_selection() {
+                tab.delete_selection();
+                self.cursor_blink_time = 0.0;
+                self.show_cursor = true;
+                return;
+            }
+            
             if tab.cursor_column > 0 {
                 // Calculate character index from cursor position (using char count, not bytes)
                 let mut char_idx = 0;
@@ -357,6 +407,11 @@ impl Editor {
     
     pub fn insert_newline(&mut self) {
         if let Some(tab) = self.tab_manager.get_active_tab_mut() {
+            // If there's a selection, delete it first
+            if tab.has_selection() {
+                tab.delete_selection();
+            }
+            
             let mut char_idx = 0;
             for line_idx in 0..tab.cursor_line {
                 if let Some(line) = tab.buffer.line(line_idx) {
@@ -437,7 +492,7 @@ impl Editor {
         }
     }
     
-    pub fn handle_click(&mut self, x: f32, y: f32) -> bool {
+    pub fn handle_click(&mut self, x: f32, y: f32, mono_font: &Font) -> bool {
         // Check if clicking on close button
         if let Some(tab_index) = self.tab_bar.get_close_button_clicked(x, y, &self.tab_manager) {
             self.tab_manager.close_tab(tab_index);
@@ -450,7 +505,108 @@ impl Editor {
             return true;
         }
         
+        // Check if clicking in editor content area
+        let tab_bar_height = self.tab_bar.height();
+        let content_y = self.y + tab_bar_height;
+        let content_height = self.height - tab_bar_height;
+        let text_x = self.x + self.gutter_width + 10.0;
+        
+        if x >= text_x && x < self.x + self.width && 
+           y >= content_y && y < content_y + content_height {
+            if let Some(tab) = self.tab_manager.get_active_tab_mut() {
+                // Calculate which line was clicked
+                let relative_y = y - content_y + tab.scroll_offset;
+                let clicked_line = (relative_y / self.line_height) as usize;
+                
+                if clicked_line < tab.buffer.len_lines() {
+                    // Calculate which column was clicked
+                    if let Some(line) = tab.buffer.line(clicked_line) {
+                        let relative_x = x - text_x;
+                        let mut current_x = 0.0;
+                        let chars: Vec<char> = line.chars().collect();
+                        let mut clicked_col = 0;
+                        
+                        for (i, ch) in chars.iter().enumerate() {
+                            let char_width = mono_font.measure_str(&ch.to_string(), None).0;
+                            if current_x + char_width / 2.0 > relative_x {
+                                clicked_col = i;
+                                break;
+                            }
+                            current_x += char_width;
+                            clicked_col = i + 1;
+                        }
+                        
+                        // Update cursor position
+                        tab.cursor_line = clicked_line;
+                        tab.cursor_column = clicked_col.min(chars.len());
+                        
+                        // Start selection
+                        tab.selection_start = Some((clicked_line, clicked_col.min(chars.len())));
+                        self.is_selecting = true;
+                        
+                        // Reset cursor blink
+                        self.cursor_blink_time = 0.0;
+                        self.show_cursor = true;
+                    }
+                }
+            }
+            return true;
+        }
+        
         false
+    }
+    
+    pub fn handle_mouse_drag(&mut self, x: f32, y: f32, mono_font: &Font) {
+        if !self.is_selecting {
+            return;
+        }
+        
+        let tab_bar_height = self.tab_bar.height();
+        let content_y = self.y + tab_bar_height;
+        let content_height = self.height - tab_bar_height;
+        let text_x = self.x + self.gutter_width + 10.0;
+        
+        if let Some(tab) = self.tab_manager.get_active_tab_mut() {
+            // Calculate which line is being dragged over
+            let relative_y = (y - content_y + tab.scroll_offset).max(0.0);
+            let dragged_line = ((relative_y / self.line_height) as usize).min(tab.buffer.len_lines() - 1);
+            
+            // Calculate which column is being dragged over
+            if let Some(line) = tab.buffer.line(dragged_line) {
+                let relative_x = (x - text_x).max(0.0);
+                let mut current_x = 0.0;
+                let chars: Vec<char> = line.chars().collect();
+                let mut dragged_col = 0;
+                
+                for (i, ch) in chars.iter().enumerate() {
+                    let char_width = mono_font.measure_str(&ch.to_string(), None).0;
+                    if current_x + char_width / 2.0 > relative_x {
+                        dragged_col = i;
+                        break;
+                    }
+                    current_x += char_width;
+                    dragged_col = i + 1;
+                }
+                
+                // Update cursor position (end of selection)
+                tab.cursor_line = dragged_line;
+                tab.cursor_column = dragged_col.min(chars.len());
+            }
+        }
+    }
+    
+    pub fn handle_mouse_release(&mut self) {
+        self.is_selecting = false;
+    }
+    
+    pub fn is_over_editor_content(&self, x: f32, y: f32) -> bool {
+        let tab_bar_height = self.tab_bar.height();
+        let content_y = self.y + tab_bar_height;
+        let content_height = self.height - tab_bar_height;
+        let text_x = self.x + self.gutter_width + 10.0;
+        
+        x >= text_x && x < self.x + self.width && 
+        y >= content_y && y < content_y + content_height
     }
     
     pub fn scroll(&mut self, delta: f32) {
@@ -480,98 +636,13 @@ impl Editor {
         }
     }
     
-    pub fn select_all(&mut self) {
-        if let Some(tab) = self.tab_manager.get_active_tab_mut() {
-            tab.selection_start = Some((0, 0));
-            let last_line = tab.buffer.len_lines().saturating_sub(1);
-            let last_col = tab.buffer.line(last_line)
-                .map(|l| l.chars().count())
-                .unwrap_or(0);
-            tab.selection_end = Some((last_line, last_col));
-            tab.cursor_line = last_line;
-            tab.cursor_column = last_col;
-        }
-    }
-    
-    pub fn get_selected_text(&self) -> Option<String> {
-        if let Some(tab) = self.tab_manager.get_active_tab() {
-            if let (Some(start), Some(end)) = (tab.selection_start, tab.selection_end) {
-                let (start_line, start_col) = start;
-                let (end_line, end_col) = end;
-                
-                let mut text = String::new();
-                for line_idx in start_line..=end_line {
-                    if let Some(line) = tab.buffer.line(line_idx) {
-                        let line_chars: Vec<char> = line.chars().collect();
-                        
-                        if line_idx == start_line && line_idx == end_line {
-                            // Single line selection
-                            let start = start_col.min(line_chars.len());
-                            let end = end_col.min(line_chars.len());
-                            text.push_str(&line_chars[start..end].iter().collect::<String>());
-                        } else if line_idx == start_line {
-                            // First line
-                            let start = start_col.min(line_chars.len());
-                            text.push_str(&line_chars[start..].iter().collect::<String>());
-                        } else if line_idx == end_line {
-                            // Last line
-                            let end = end_col.min(line_chars.len());
-                            text.push_str(&line_chars[..end].iter().collect::<String>());
-                        } else {
-                            // Middle lines
-                            text.push_str(&line);
-                        }
-                    }
-                }
-                return Some(text);
-            }
-        }
-        None
-    }
-    
-    pub fn delete_selection(&mut self) {
-        if let Some(tab) = self.tab_manager.get_active_tab_mut() {
-            if let (Some(start), Some(end)) = (tab.selection_start, tab.selection_end) {
-                let (start_line, start_col) = start;
-                let (end_line, end_col) = end;
-                
-                // Calculate character indices
-                let mut start_idx = 0;
-                for line_idx in 0..start_line {
-                    if let Some(line) = tab.buffer.line(line_idx) {
-                        start_idx += line.chars().count();
-                    }
-                }
-                start_idx += start_col;
-                
-                let mut end_idx = 0;
-                for line_idx in 0..end_line {
-                    if let Some(line) = tab.buffer.line(line_idx) {
-                        end_idx += line.chars().count();
-                    }
-                }
-                end_idx += end_col;
-                
-                // Delete the range
-                tab.buffer.remove(start_idx, end_idx);
-                
-                // Update cursor position
-                tab.cursor_line = start_line;
-                tab.cursor_column = start_col;
-                
-                // Clear selection
-                tab.selection_start = None;
-                tab.selection_end = None;
-                
-                // Re-parse for syntax highlighting
-                tab.highlighter.parse(&tab.buffer.to_string());
-            }
-        }
-    }
-    
     pub fn insert_text(&mut self, text: &str) {
         // Delete selection if any
-        self.delete_selection();
+        if let Some(tab) = self.tab_manager.get_active_tab_mut() {
+            if tab.has_selection() {
+                tab.delete_selection();
+            }
+        }
         
         // Insert text character by character
         for c in text.chars() {
@@ -586,5 +657,118 @@ impl Editor {
                 self.insert_char(c);
             }
         }
+    }
+    
+    // Clipboard operations
+    
+    /// Copy selected text to clipboard (returns the text to be copied)
+    pub fn copy(&self) -> Option<String> {
+        if let Some(tab) = self.tab_manager.get_active_tab() {
+            if tab.has_selection() {
+                return Some(tab.get_selected_text());
+            } else {
+                // If no selection, copy the entire current line
+                if let Some(line) = tab.buffer.line(tab.cursor_line) {
+                    return Some(line);
+                }
+            }
+        }
+        None
+    }
+    
+    /// Cut selected text to clipboard (returns the text to be cut)
+    pub fn cut(&mut self) -> Option<String> {
+        if let Some(tab) = self.tab_manager.get_active_tab_mut() {
+            if tab.has_selection() {
+                let text = tab.get_selected_text();
+                tab.delete_selection();
+                return Some(text);
+            } else {
+                // If no selection, cut the entire current line
+                if let Some(line) = tab.buffer.line(tab.cursor_line) {
+                    let text = line.clone();
+                    // Delete the line
+                    let mut char_idx = 0;
+                    for line_idx in 0..tab.cursor_line {
+                        if let Some(l) = tab.buffer.line(line_idx) {
+                            char_idx += l.chars().count();
+                        }
+                    }
+                    let line_len = line.chars().count();
+                    tab.buffer.remove(char_idx, char_idx + line_len);
+                    tab.highlighter.parse(&tab.buffer.to_string());
+                    return Some(text);
+                }
+            }
+        }
+        None
+    }
+    
+    /// Paste text from clipboard
+    pub fn paste(&mut self, text: &str) {
+        if let Some(tab) = self.tab_manager.get_active_tab_mut() {
+            // Delete selection if any
+            if tab.has_selection() {
+                tab.delete_selection();
+            }
+            
+            // Insert the pasted text
+            let mut char_idx = 0;
+            for line_idx in 0..tab.cursor_line {
+                if let Some(line) = tab.buffer.line(line_idx) {
+                    char_idx += line.chars().count();
+                }
+            }
+            char_idx += tab.cursor_column;
+            
+            tab.buffer.insert(char_idx, text);
+            
+            // Update cursor position
+            let newline_count = text.matches('\n').count();
+            if newline_count > 0 {
+                tab.cursor_line += newline_count;
+                if let Some(last_line) = text.lines().last() {
+                    tab.cursor_column = last_line.chars().count();
+                }
+            } else {
+                tab.cursor_column += text.chars().count();
+            }
+            
+            tab.highlighter.parse(&tab.buffer.to_string());
+        }
+    }
+    
+    /// Select all text in the current buffer
+    pub fn select_all(&mut self) {
+        if let Some(tab) = self.tab_manager.get_active_tab_mut() {
+            tab.selection_start = Some((0, 0));
+            let last_line = tab.buffer.len_lines().saturating_sub(1);
+            let last_column = tab.buffer.line(last_line)
+                .map(|l| l.chars().count())
+                .unwrap_or(0);
+            tab.cursor_line = last_line;
+            tab.cursor_column = last_column;
+        }
+    }
+    
+    /// Start text selection at current cursor position
+    pub fn start_selection(&mut self) {
+        if let Some(tab) = self.tab_manager.get_active_tab_mut() {
+            tab.selection_start = Some((tab.cursor_line, tab.cursor_column));
+        }
+    }
+    
+    /// Clear current selection
+    pub fn clear_selection(&mut self) {
+        if let Some(tab) = self.tab_manager.get_active_tab_mut() {
+            tab.selection_start = None;
+        }
+    }
+    
+    /// Check if there's an active selection
+    pub fn has_selection(&self) -> bool {
+        self.tab_manager.get_active_tab()
+            .map(|tab| tab.has_selection())
+            .unwrap_or(false)
     }
 }

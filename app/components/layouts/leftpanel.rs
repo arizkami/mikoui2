@@ -119,6 +119,25 @@ impl LeftPanel {
     pub fn explorer_mut(&mut self) -> &mut Explorer {
         &mut self.explorer
     }
+    
+    pub fn handle_mouse_press(&mut self, x: f32, y: f32) {
+        // Check if clicking on scrollbar
+        if self.explorer.is_over_scrollbar(x, y) {
+            self.explorer.start_scrollbar_drag(y);
+        }
+    }
+    
+    pub fn handle_mouse_drag(&mut self, y: f32) {
+        self.explorer.handle_scrollbar_drag(y);
+    }
+    
+    pub fn handle_mouse_release(&mut self) {
+        self.explorer.stop_scrollbar_drag();
+    }
+    
+    pub fn is_scrollbar_dragging(&self) -> bool {
+        self.explorer.is_scrollbar_dragging()
+    }
 }
 
 impl Widget for LeftPanel {

@@ -1,5 +1,6 @@
 use crate::tab::TabManager;
 use skia_safe::{Canvas, Color, Font, Paint, Rect};
+use mikoui::{current_theme, with_alpha};
 
 pub struct TabBar {
     x: f32,
@@ -41,8 +42,9 @@ impl TabBar {
     
     pub fn draw(&self, canvas: &Canvas, font: &Font, tab_manager: &TabManager) {
         // Background
+        let theme = current_theme();
         let mut bg_paint = Paint::default();
-        bg_paint.set_color(Color::from_rgb(37, 37, 38));
+        bg_paint.set_color(theme.card);
         bg_paint.set_anti_alias(true);
         canvas.draw_rect(
             Rect::from_xywh(self.x, self.y, self.width, self.height),
@@ -80,7 +82,7 @@ impl TabBar {
         
         // Bottom border
         let mut border_paint = Paint::default();
-        border_paint.set_color(Color::from_rgb(60, 60, 60));
+        border_paint.set_color(theme.border);
         border_paint.set_stroke_width(1.0);
         canvas.draw_line(
             (self.x, self.y + self.height),
@@ -101,18 +103,19 @@ impl TabBar {
         index: usize,
     ) {
         // Tab background
+        let theme = current_theme();
         let mut tab_paint = Paint::default();
         tab_paint.set_anti_alias(true);
         
         if is_active {
-            tab_paint.set_color(Color::from_rgb(30, 30, 30));
+            tab_paint.set_color(theme.background);
         } else if is_hovered {
             let hover_alpha = if index < self.hover_progress.len() {
                 (50.0 * self.hover_progress[index]) as u8
             } else {
                 0
             };
-            tab_paint.set_color(Color::from_argb(hover_alpha, 255, 255, 255));
+            tab_paint.set_color(with_alpha(theme.foreground, hover_alpha));
         }
         
         canvas.draw_rect(
@@ -123,7 +126,7 @@ impl TabBar {
         // Active tab indicator
         if is_active {
             let mut indicator_paint = Paint::default();
-            indicator_paint.set_color(Color::from_rgb(0, 122, 204));
+            indicator_paint.set_color(theme.primary);
             indicator_paint.set_anti_alias(true);
             canvas.draw_rect(
                 Rect::from_xywh(x, self.y, width, 2.0),
@@ -136,9 +139,9 @@ impl TabBar {
         let text_y = self.y + self.height / 2.0 + 5.0;
         let mut text_paint = Paint::default();
         text_paint.set_color(if is_active {
-            Color::from_rgb(255, 255, 255)
+            theme.foreground
         } else {
-            Color::from_rgb(170, 170, 170)
+            theme.muted_foreground
         });
         text_paint.set_anti_alias(true);
         
@@ -167,7 +170,7 @@ impl TabBar {
             // Close button background
             if is_close_hovered {
                 let mut close_bg = Paint::default();
-                close_bg.set_color(Color::from_rgb(90, 90, 90));
+                close_bg.set_color(theme.muted);
                 close_bg.set_anti_alias(true);
                 canvas.draw_round_rect(
                     Rect::from_xywh(close_x, close_y, Self::CLOSE_BUTTON_SIZE, Self::CLOSE_BUTTON_SIZE),
@@ -179,7 +182,7 @@ impl TabBar {
             
             // Close icon (X)
             let mut close_paint = Paint::default();
-            close_paint.set_color(Color::from_rgb(200, 200, 200));
+            close_paint.set_color(theme.foreground);
             close_paint.set_stroke_width(1.5);
             close_paint.set_anti_alias(true);
             
@@ -199,7 +202,7 @@ impl TabBar {
         // Tab separator
         if !is_active {
             let mut separator_paint = Paint::default();
-            separator_paint.set_color(Color::from_rgb(60, 60, 60));
+            separator_paint.set_color(theme.border);
             separator_paint.set_stroke_width(1.0);
             canvas.draw_line(
                 (x + width, self.y + 8.0),

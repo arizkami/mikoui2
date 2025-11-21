@@ -1225,6 +1225,7 @@ version = "0.1.0"
 name = "mikoeditor"
 version = "0.1.0"
 dependencies = [
+ "mikoui",
  "ropey",
  "skia-safe",
  "tree-sitter",
@@ -1233,6 +1234,7 @@ dependencies = [
  "tree-sitter-python",
  "tree-sitter-rust",
  "tree-sitter-typescript",
+ "windows",
 ]
 
 [[package]]
@@ -1241,6 +1243,7 @@ version = "0.1.0"
 dependencies = [
  "skia-safe",
  "unicode-width",
+ "windows",
 ]
 
 [[package]]

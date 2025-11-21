@@ -253,3 +253,118 @@ impl Default for TabManager {
         Self::new()
     }
 }
+
+
+impl EditorTab {
+    /// Check if there's an active selection
+    pub fn has_selection(&self) -> bool {
+        self.selection_start.is_some() && 
+        self.selection_start != Some((self.cursor_line, self.cursor_column))
+    }
+    
+    /// Get the selected text
+    pub fn get_selected_text(&self) -> String {
+        if let Some((start_line, start_col)) = self.selection_start {
+            let end_line = self.cursor_line;
+            let end_col = self.cursor_column;
+            
+            // Normalize selection (ensure start is before end)
+            let ((sel_start_line, sel_start_col), (sel_end_line, sel_end_col)) = 
+                if start_line < end_line || (start_line == end_line && start_col < end_col) {
+                    ((start_line, start_col), (end_line, end_col))
+                } else {
+                    ((end_line, end_col), (start_line, start_col))
+                };
+            
+            let mut result = String::new();
+            
+            if sel_start_line == sel_end_line {
+                // Single line selection
+                if let Some(line) = self.buffer.line(sel_start_line) {
+                    let chars: Vec<char> = line.chars().collect();
+                    let start = sel_start_col.min(chars.len());
+                    let end = sel_end_col.min(chars.len());
+                    result = chars[start..end].iter().collect();
+                }
+            } else {
+                // Multi-line selection
+                for line_idx in sel_start_line..=sel_end_line {
+                    if let Some(line) = self.buffer.line(line_idx) {
+                        let chars: Vec<char> = line.chars().collect();
+                        
+                        if line_idx == sel_start_line {
+                            // First line: from start_col to end
+                            let start = sel_start_col.min(chars.len());
+                            result.push_str(&chars[start..].iter().collect::<String>());
+                        } else if line_idx == sel_end_line {
+                            // Last line: from beginning to end_col
+                            let end = sel_end_col.min(chars.len());
+                            result.push_str(&chars[..end].iter().collect::<String>());
+                        } else {
+                            // Middle lines: entire line
+                            result.push_str(&line);
+                        }
+                    }
+                }
+            }
+            
+            result
+        } else {
+            String::new()
+        }
+    }
+    
+    /// Delete the selected text
+    pub fn delete_selection(&mut self) {
+        if let Some((start_line, start_col)) = self.selection_start {
+            let end_line = self.cursor_line;
+            let end_col = self.cursor_column;
+            
+            // Normalize selection
+            let ((sel_start_line, sel_start_col), (sel_end_line, sel_end_col)) = 
+                if start_line < end_line || (start_line == end_line && start_col < end_col) {
+                    ((start_line, start_col), (end_line, end_col))
+                } else {
+                    ((end_line, end_col), (start_line, start_col))
+                };
+            
+            // Calculate character indices
+            let mut start_char_idx = 0;
+            for line_idx in 0..sel_start_line {
+                if let Some(line) = self.buffer.line(line_idx) {
+                    start_char_idx += line.chars().count();
+                }
+            }
+            start_char_idx += sel_start_col;
+            
+            let mut end_char_idx = 0;
+            for line_idx in 0..sel_end_line {
+                if let Some(line) = self.buffer.line(line_idx) {
+                    end_char_idx += line.chars().count();
+                }
+            }
+            end_char_idx += sel_end_col;
+            
+            // Delete the range (only if there's something to delete)
+            if start_char_idx < end_char_idx {
+                self.buffer.remove(start_char_idx, end_char_idx);
+            }
+            
+            // Update cursor position - ensure it's within bounds
+            self.cursor_line = sel_start_line.min(self.buffer.len_lines().saturating_sub(1));
+            
+            // Ensure cursor column is within the line bounds
+            if let Some(line) = self.buffer.line(self.cursor_line) {
+                self.cursor_column = sel_start_col.min(line.chars().count());
+            } else {
+                self.cursor_column = 0;
+            }
+            
+            // Clear selection
+            self.selection_start = None;
+            
+            // Re-parse for syntax highlighting
+            self.highlighter.parse(&self.buffer.to_string());
+        }
+    }
+}

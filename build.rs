@@ -104,12 +104,13 @@ fn main() {
     // Copy shared folder to build directory (CMake style)
     let profile = env::var("PROFILE").unwrap_or_else(|_| "debug".to_string());
     let build_dir = Path::new("build").join(&profile);
+    let bin_dir = build_dir.join("bin");
     let shared_src = Path::new("shared");
-    let shared_dst = build_dir.join("bin/shared");
+    let shared_dst = bin_dir.join("shared");
     
     // Create build directory structure
-    if let Err(e) = fs::create_dir_all(&build_dir) {
-        println!("cargo:warning=Failed to create build directory: {}", e);
+    if let Err(e) = fs::create_dir_all(&bin_dir) {
+        println!("cargo:warning=Failed to create bin directory: {}", e);
     }
     
     if shared_src.exists() {
@@ -121,4 +122,9 @@ fn main() {
     } else {
         println!("cargo:warning=Shared folder not found at {}", shared_src.display());
     }
+    
+    // Note: The executable will be at build/{profile}/rabital.exe
+    // We'll create a post-build script to copy it to build/{profile}/bin/rabital.exe
+    println!("cargo:warning=Executable will be built to build/{}/rabital.exe", profile);
+    println!("cargo:warning=Run 'cargo xtask copy-exe' after build to copy to bin directory");
 }

@@ -1,10 +1,12 @@
 pub mod leftpanel;
 pub mod rightpanel;
 pub mod bottompanel;
+pub mod statusbar;
 
 pub use leftpanel::LeftPanel;
 pub use rightpanel::RightPanel;
 pub use bottompanel::BottomPanel;
+pub use statusbar::StatusBar;
 
 /// Layout configuration
 #[derive(Debug, Clone)]

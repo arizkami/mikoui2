@@ -72,6 +72,12 @@ pub struct Explorer {
     scroll_offset: f32,
     hover_index: Option<usize>,
     expanded_paths: Vec<String>,
+    // Scrollbar state
+    scrollbar_width: f32,
+    scrollbar_hover: bool,
+    scrollbar_dragging: bool,
+    drag_start_y: f32,
+    drag_start_offset: f32,
 }
 
 impl Explorer {
@@ -86,6 +92,11 @@ impl Explorer {
             scroll_offset: 0.0,
             hover_index: None,
             expanded_paths: Vec::new(),
+            scrollbar_width: 8.0,
+            scrollbar_hover: false,
+            scrollbar_dragging: false,
+            drag_start_y: 0.0,
+            drag_start_offset: 0.0,
         }
     }
     
@@ -104,6 +115,11 @@ impl Explorer {
             scroll_offset: 0.0,
             hover_index: None,
             expanded_paths: Vec::new(),
+            scrollbar_width: 8.0,
+            scrollbar_hover: false,
+            scrollbar_dragging: false,
+            drag_start_y: 0.0,
+            drag_start_offset: 0.0,
         };
         
         explorer.load_root();
@@ -326,6 +342,81 @@ impl Explorer {
         self.width = width;
         self.height = height;
     }
+    
+    fn get_scrollbar_rect(&self) -> Rect {
+        let item_height = 28.0;
+        let visible_items = self.get_visible_items();
+        let total_height = visible_items.len() as f32 * item_height;
+        
+        if total_height <= self.height {
+            return Rect::from_xywh(0.0, 0.0, 0.0, 0.0); // No scrollbar needed
+        }
+        
+        let scrollbar_height = (self.height / total_height * self.height).max(30.0);
+        let max_scroll = total_height - self.height;
+        let scroll_ratio = if max_scroll > 0.0 {
+            self.scroll_offset / max_scroll
+        } else {
+            0.0
+        };
+        let scrollbar_y = self.y + (self.height - scrollbar_height) * scroll_ratio;
+        
+        Rect::from_xywh(
+            self.x + self.width - self.scrollbar_width - 2.0,
+            scrollbar_y,
+            self.scrollbar_width,
+            scrollbar_height,
+        )
+    }
+    
+    pub fn is_over_scrollbar(&self, x: f32, y: f32) -> bool {
+        let rect = self.get_scrollbar_rect();
+        rect.width() > 0.0 && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom
+    }
+    
+    pub fn start_scrollbar_drag(&mut self, y: f32) {
+        self.scrollbar_dragging = true;
+        self.drag_start_y = y;
+        self.drag_start_offset = self.scroll_offset;
+    }
+    
+    pub fn stop_scrollbar_drag(&mut self) {
+        self.scrollbar_dragging = false;
+    }
+    
+    pub fn handle_scrollbar_drag(&mut self, y: f32) {
+        if !self.scrollbar_dragging {
+            return;
+        }
+        
+        let item_height = 28.0;
+        let visible_items = self.get_visible_items();
+        let total_height = visible_items.len() as f32 * item_height;
+        let max_scroll = (total_height - self.height).max(0.0);
+        
+        if max_scroll <= 0.0 {
+            return;
+        }
+        
+        let delta_y = y - self.drag_start_y;
+        let scroll_ratio = delta_y / self.height;
+        let delta_scroll = scroll_ratio * total_height;
+        
+        self.scroll_offset = (self.drag_start_offset + delta_scroll).clamp(0.0, max_scroll);
+    }
+    
+    pub fn is_scrollbar_dragging(&self) -> bool {
+        self.scrollbar_dragging
+    }
+    
+    pub fn scroll(&mut self, delta: f32) {
+        let item_height = 28.0;
+        let visible_items = self.get_visible_items();
+        let total_height = visible_items.len() as f32 * item_height;
+        let max_scroll = (total_height - self.height).max(0.0);
+        
+        self.scroll_offset = (self.scroll_offset + delta).clamp(0.0, max_scroll);
+    }
 }
 
 impl Widget for Explorer {
@@ -422,6 +513,28 @@ impl Widget for Explorer {
                 &text_paint,
             );
         }
+        
+        // Draw scrollbar if needed
+        let scrollbar_rect = self.get_scrollbar_rect();
+        if scrollbar_rect.width() > 0.0 {
+            let mut scrollbar_paint = Paint::default();
+            let alpha = if self.scrollbar_dragging {
+                180
+            } else if self.scrollbar_hover {
+                120
+            } else {
+                80
+            };
+            scrollbar_paint.set_color(Color::from_argb(alpha, 200, 200, 200));
+            scrollbar_paint.set_anti_alias(true);
+            
+            canvas.draw_round_rect(
+                scrollbar_rect,
+                4.0,
+                4.0,
+                &scrollbar_paint,
+            );
+        }
     }
     
     fn contains(&self, x: f32, y: f32) -> bool {
@@ -430,6 +543,15 @@ impl Widget for Explorer {
     
     fn update_hover(&mut self, x: f32, y: f32) {
         if !self.contains(x, y) {
+            self.hover_index = None;
+            self.scrollbar_hover = false;
+            return;
+        }
+        
+        // Check if hovering over scrollbar
+        self.scrollbar_hover = self.is_over_scrollbar(x, y);
+        
+        if self.scrollbar_hover {
             self.hover_index = None;
             return;
         }
@@ -451,6 +573,11 @@ impl Widget for Explorer {
     }
     
     fn on_click(&mut self) {
+        // Don't handle clicks if on scrollbar
+        if self.scrollbar_hover {
+            return;
+        }
+        
         if let Some(index) = self.hover_index {
             self.toggle_item(index);
         }

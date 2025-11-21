@@ -10,3 +10,7 @@ build-release = "build --release --bin rabital"
 build-debug = "build --bin rabital"
 run-release = "run --release --bin rabital"
 run-debug = "run --bin rabital"
+
+# Note: After building, run the post-build script to copy executable to bin directory:
+# PowerShell: .\scripts\post-build.ps1 -Profile release
+# PowerShell: .\scripts\post-build.ps1 -Profile debug

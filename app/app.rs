@@ -12,7 +12,7 @@ use mikoui::{
     set_theme, FontManager, ThemeColors, ThemeMode, Widget, 
     dwm_windows,
 };
-use components::{ActivityBar, TitleBar, MenuBar, WindowControl, LayoutButton, LeftPanel, RightPanel, BottomPanel, LayoutConfig, CommandPalette};
+use components::{ActivityBar, TitleBar, MenuBar, WindowControl, LayoutButton, LeftPanel, RightPanel, BottomPanel, StatusBar, LayoutConfig, CommandPalette};
 use core::{create_editor_menus, handle_menu_action};
 use theme::{kiro::KiroTheme, vscode::VSCodeTheme, xcode::XcodeTheme};
 use mikoeditor::Editor;
@@ -70,6 +70,7 @@ struct App {
     left_panel: Option<LeftPanel>,
     right_panel: Option<RightPanel>,
     bottom_panel: Option<BottomPanel>,
+    status_bar: Option<StatusBar>,
     command_palette: Option<CommandPalette>,
     editor: Option<Editor>,
     layout_config: LayoutConfig,
@@ -138,6 +139,7 @@ impl App {
             left_panel: None,
             right_panel: None,
             bottom_panel: None,
+            status_bar: None,
             command_palette: None,
             editor: None,
             layout_config,
@@ -326,7 +328,20 @@ impl App {
             content_height
         };
         
-        let editor = Editor::new(editor_x, content_top, editor_width, editor_height);
+        // Create status bar at the bottom
+        let status_bar_height = 24.0;
+        let status_bar_y = _height - status_bar_height;
+        let status_bar = StatusBar::new(0.0, status_bar_y, width);
+        self.status_bar = Some(status_bar);
+        
+        // Adjust editor height to account for status bar
+        let editor_height_adjusted = if self.layout_config.bottom_panel_visible {
+            content_height - self.layout_config.bottom_panel_height - status_bar_height
+        } else {
+            content_height - status_bar_height
+        };
+        
+        let editor = Editor::new(editor_x, content_top, editor_width, editor_height_adjusted);
         self.editor = Some(editor);
     }
     
@@ -610,6 +625,18 @@ impl App {
                 let ui_font = self.font_manager.create_font(&sample_text, 13.0, 400);
                 let mono_font = self.font_manager.create_font(&sample_text, 14.0, 400);
                 editor.draw(canvas, &ui_font, &mono_font);
+                
+                // Update status bar with editor info
+                if let Some(ref mut status_bar) = self.status_bar {
+                    if let Some((language, line, col)) = editor.get_editor_info() {
+                        status_bar.update_editor_info(language, line, col);
+                    }
+                }
+            }
+            
+            // Draw status bar
+            if let Some(ref mut status_bar) = self.status_bar {
+                status_bar.draw(canvas, &mut self.font_manager);
             }
             
             // Draw menubar dropdown on top of everything
@@ -642,10 +669,18 @@ impl App {
                 buffer.present().unwrap();
             }
             
-            // Request another frame if animation is in progress
+            // Request another frame if animation is in progress or resizing
             if self.needs_continuous_redraw() {
                 window.request_redraw();
             }
+        }
+    }
+    
+    fn update_control_flow(&self, event_loop: &ActiveEventLoop) {
+        if self.needs_continuous_redraw() {
+            event_loop.set_control_flow(ControlFlow::Poll);
+        } else {
+            event_loop.set_control_flow(ControlFlow::Wait);
         }
     }
     
@@ -656,6 +691,24 @@ impl App {
                 return true;
             }
         }
+        
+        // Check if any panel is resizing
+        if let Some(ref left_panel) = self.left_panel {
+            if left_panel.is_resizing() || left_panel.is_scrollbar_dragging() {
+                return true;
+            }
+        }
+        if let Some(ref right_panel) = self.right_panel {
+            if right_panel.is_resizing() {
+                return true;
+            }
+        }
+        if let Some(ref bottom_panel) = self.bottom_panel {
+            if bottom_panel.is_resizing() {
+                return true;
+            }
+        }
+        
         false
     }
     
@@ -707,9 +760,12 @@ impl App {
             KeyCode::KeyC => {
                 // Copy
                 if let Some(ref editor) = self.editor {
-                    if let Some(text) = editor.get_selected_text() {
-                        if let Ok(mut clipboard) = arboard::Clipboard::new() {
-                            let _ = clipboard.set_text(text);
+                    if let Some(tab) = editor.tab_manager().get_active_tab() {
+                        let text = tab.get_selected_text();
+                        if !text.is_empty() {
+                            if let Ok(mut clipboard) = arboard::Clipboard::new() {
+                                let _ = clipboard.set_text(text);
+                            }
                         }
                     }
                 }
@@ -718,13 +774,16 @@ impl App {
             KeyCode::KeyX => {
                 // Cut
                 if let Some(ref mut editor) = self.editor {
-                    if let Some(text) = editor.get_selected_text() {
-                        if let Ok(mut clipboard) = arboard::Clipboard::new() {
-                            let _ = clipboard.set_text(text);
-                        }
-                        editor.delete_selection();
-                        if let Some(window) = &self.window {
-                            window.request_redraw();
+                    if let Some(tab) = editor.tab_manager_mut().get_active_tab_mut() {
+                        let text = tab.get_selected_text();
+                        if !text.is_empty() {
+                            if let Ok(mut clipboard) = arboard::Clipboard::new() {
+                                let _ = clipboard.set_text(text);
+                            }
+                            tab.delete_selection();
+                            if let Some(window) = &self.window {
+                                window.request_redraw();
+                            }
                         }
                     }
                 }
@@ -918,6 +977,20 @@ impl ApplicationHandler for App {
                 
                 if let Some(ref mut editor) = self.editor {
                     editor.update_hover(self.mouse_pos.0, self.mouse_pos.1);
+                    
+                    // Handle mouse drag for text selection
+                    let mono_font = self.font_manager.create_font("", 14.0, 400);
+                    editor.handle_mouse_drag(self.mouse_pos.0, self.mouse_pos.1, &mono_font);
+                    
+                    // Change cursor to text cursor when over editor content
+                    if let Some(window) = &self.window {
+                        use winit::window::CursorIcon;
+                        if editor.is_over_editor_content(self.mouse_pos.0, self.mouse_pos.1) {
+                            window.set_cursor(CursorIcon::Text);
+                        } else {
+                            window.set_cursor(CursorIcon::Default);
+                        }
+                    }
                 }
                 
                 // Update panel hover states and handle resizing
@@ -930,6 +1003,9 @@ impl ApplicationHandler for App {
                             let size = window.inner_size();
                             self.build_ui(size.width as f32, size.height as f32);
                         }
+                    } else if left_panel.is_scrollbar_dragging() {
+                        // Handle scrollbar drag
+                        left_panel.handle_mouse_drag(self.mouse_pos.1);
                     } else {
                         left_panel.update_hover(self.mouse_pos.0, self.mouse_pos.1);
                     }
@@ -977,6 +1053,9 @@ impl ApplicationHandler for App {
                         }
                     }
                 }
+                
+                // Update control flow based on whether we need continuous updates
+                self.update_control_flow(event_loop);
                 
                 if let Some(window) = &self.window {
                     window.request_redraw();
@@ -1118,7 +1197,9 @@ impl ApplicationHandler for App {
                 
                 // Check editor tabs
                 if let Some(ref mut editor) = self.editor {
-                    if editor.handle_click(self.mouse_pos.0, self.mouse_pos.1) {
+                    // Create a temporary font for click handling
+                    let mono_font = self.font_manager.create_font("", 14.0, 400);
+                    if editor.handle_click(self.mouse_pos.0, self.mouse_pos.1, &mono_font) {
                         if let Some(window) = &self.window {
                             window.request_redraw();
                         }
@@ -1130,6 +1211,7 @@ impl ApplicationHandler for App {
                 if let Some(ref mut left_panel) = self.left_panel {
                     if left_panel.is_over_resize_handle(self.mouse_pos.0, self.mouse_pos.1) {
                         left_panel.start_resize();
+                        self.update_control_flow(event_loop);
                         if let Some(window) = &self.window {
                             window.request_redraw();
                         }
@@ -1138,7 +1220,11 @@ impl ApplicationHandler for App {
                     
                     // Check if click is inside left panel (but not on resize handle)
                     if left_panel.contains(self.mouse_pos.0, self.mouse_pos.1) {
-                        left_panel.on_click();
+                        // Handle scrollbar or regular click
+                        left_panel.handle_mouse_press(self.mouse_pos.0, self.mouse_pos.1);
+                        if !left_panel.is_scrollbar_dragging() {
+                            left_panel.on_click();
+                        }
                         if let Some(window) = &self.window {
                             window.request_redraw();
                         }
@@ -1149,6 +1235,7 @@ impl ApplicationHandler for App {
                 if let Some(ref mut right_panel) = self.right_panel {
                     if right_panel.is_over_resize_handle(self.mouse_pos.0, self.mouse_pos.1) {
                         right_panel.start_resize();
+                        self.update_control_flow(event_loop);
                         if let Some(window) = &self.window {
                             window.request_redraw();
                         }
@@ -1159,6 +1246,7 @@ impl ApplicationHandler for App {
                 if let Some(ref mut bottom_panel) = self.bottom_panel {
                     if bottom_panel.is_over_resize_handle(self.mouse_pos.0, self.mouse_pos.1) {
                         bottom_panel.start_resize();
+                        self.update_control_flow(event_loop);
                         if let Some(window) = &self.window {
                             window.request_redraw();
                         }
@@ -1202,6 +1290,7 @@ impl ApplicationHandler for App {
                 // Stop panel resizing
                 if let Some(ref mut left_panel) = self.left_panel {
                     left_panel.stop_resize();
+                    left_panel.handle_mouse_release();
                 }
                 if let Some(ref mut right_panel) = self.right_panel {
                     right_panel.stop_resize();
@@ -1209,6 +1298,14 @@ impl ApplicationHandler for App {
                 if let Some(ref mut bottom_panel) = self.bottom_panel {
                     bottom_panel.stop_resize();
                 }
+                
+                // Stop text selection
+                if let Some(ref mut editor) = self.editor {
+                    editor.handle_mouse_release();
+                }
+                
+                // Update control flow - switch back to Wait if nothing is active
+                self.update_control_flow(event_loop);
             }
             WindowEvent::MouseInput {
                 state: ElementState::Pressed,

@@ -5,6 +5,7 @@ edition = "2021"
 
 [lib]
 path = "lib.rs"
+crate-type = ["rlib"]  # Static library (cdylib causes linking issues with Skia's C++ dependencies)
 
 [dependencies]
 tree-sitter = "0.20"
@@ -15,3 +16,9 @@ tree-sitter-python = "0.20"
 tree-sitter-json = "0.20"
 ropey = "1.6"
 skia-safe = "0.78"
+mikoui = { path = "../mikoui" }
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.61", features = [
+    "Win32_System_Registry",  # Required for ICU in skia
+] }
