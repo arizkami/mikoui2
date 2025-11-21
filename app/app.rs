@@ -5,8 +5,10 @@ mod components;
 mod core;
 mod pages;
 mod state;
+mod hooks;
 
 use state::AppState;
+use hooks::ConfigLoader;
 
 use mikoui::{
     set_theme, FontManager, ThemeColors, ThemeMode, Widget, 
@@ -87,6 +89,7 @@ struct App {
     app_state: AppState,
     ime_enabled: bool,
     modifiers: winit::keyboard::ModifiersState,
+    config_loader: ConfigLoader,
     #[cfg(target_os = "windows")]
     window_hwnd: Option<isize>,
 }
@@ -156,6 +159,7 @@ impl App {
             app_state,
             ime_enabled: false,
             modifiers: winit::keyboard::ModifiersState::empty(),
+            config_loader: ConfigLoader::new(),
             #[cfg(target_os = "windows")]
             window_hwnd: None,
         }
@@ -238,10 +242,11 @@ impl App {
         self.activitybar = Some(activitybar);
         
         // Create layout panels
+        let status_bar_height = 24.0;
         let content_top = TITLEBAR_HEIGHT;
         let content_left = activity_bar_width;
         let content_width = width - content_left;
-        let content_height = _height - content_top;
+        let content_height = _height - content_top - status_bar_height;  // Account for status bar
         
         // Left panel
         if self.layout_config.left_panel_visible {
@@ -292,9 +297,9 @@ impl App {
             self.right_panel = None;
         }
         
-        // Bottom panel
+        // Bottom panel (above status bar)
         if self.layout_config.bottom_panel_visible {
-            let bottom_y = _height - self.layout_config.bottom_panel_height;
+            let bottom_y = _height - self.layout_config.bottom_panel_height - status_bar_height;
             let bottom_panel = BottomPanel::new(
                 content_left,
                 bottom_y,
@@ -329,19 +334,12 @@ impl App {
         };
         
         // Create status bar at the bottom
-        let status_bar_height = 24.0;
         let status_bar_y = _height - status_bar_height;
         let status_bar = StatusBar::new(0.0, status_bar_y, width);
         self.status_bar = Some(status_bar);
         
-        // Adjust editor height to account for status bar
-        let editor_height_adjusted = if self.layout_config.bottom_panel_visible {
-            content_height - self.layout_config.bottom_panel_height - status_bar_height
-        } else {
-            content_height - status_bar_height
-        };
-        
-        let editor = Editor::new(editor_x, content_top, editor_width, editor_height_adjusted);
+        // Editor height already accounts for status bar through content_height
+        let editor = Editor::new(editor_x, content_top, editor_width, editor_height);
         self.editor = Some(editor);
     }
     
@@ -362,6 +360,17 @@ impl App {
                         
                         // Update app state with new workspace path
                         self.app_state.workspace_path = Some(path.clone());
+                        
+                        // Load workspace configs (.rabital folder)
+                        self.config_loader.set_workspace(path.clone());
+                        
+                        // Log loaded configs
+                        if let Some(settings) = self.config_loader.get_settings() {
+                            println!("Loaded editor settings: theme={}", settings.editor.theme);
+                        }
+                        if let Some(tasks) = self.config_loader.get_tasks() {
+                            println!("Loaded {} tasks", tasks.tasks.len());
+                        }
                         
                         // Change current directory
                         if let Err(e) = std::env::set_current_dir(&path) {
@@ -605,9 +614,13 @@ impl App {
             if let Some(ref mut editor) = self.editor {
                 editor.update_animation(elapsed);
                 
-                // Detect language from editor content for proper font selection
+                // Create UI font (normal, for tab bar)
+                let ui_font = self.font_manager.create_font("", 13.0, 400);
+                
+                // Create monospace font for editor content with multi-language support
+                // Use a sample of actual editor content to ensure proper font fallback
                 let sample_text = if let Some(tab) = editor.tab_manager().get_active_tab() {
-                    // Get first few lines to detect language
+                    // Get first few lines to detect language and characters
                     let mut sample = String::new();
                     for i in 0..5.min(tab.buffer.len_lines()) {
                         if let Some(line) = tab.buffer.line(i) {
@@ -622,8 +635,10 @@ impl App {
                     String::new()
                 };
                 
-                let ui_font = self.font_manager.create_font(&sample_text, 13.0, 400);
-                let mono_font = self.font_manager.create_font(&sample_text, 14.0, 400);
+                // Create monospace font with the sample text for proper font fallback
+                // This ensures CJK, Arabic, Cyrillic, etc. are properly rendered
+                let mono_font = self.font_manager.create_monospace_font(&sample_text, 14.0, 400);
+                
                 editor.draw(canvas, &ui_font, &mono_font);
                 
                 // Update status bar with editor info
@@ -803,6 +818,55 @@ impl App {
                 }
                 true
             }
+            KeyCode::KeyN => {
+                // New Tab (Ctrl+N)
+                if let Some(ref mut editor) = self.editor {
+                    editor.new_tab();
+                    println!("Created new tab");
+                    if let Some(window) = &self.window {
+                        window.request_redraw();
+                    }
+                }
+                true
+            }
+            KeyCode::KeyO => {
+                // Open File (Ctrl+O)
+                use mikoui::file_dialogs;
+                println!("Opening file dialog...");
+                match file_dialogs::open_file_dialog("Open File", &[("All Files", "*.*")]) {
+                    Some(path) => {
+                        println!("File selected: {:?}", path);
+                        if let Some(ref mut editor) = self.editor {
+                            match editor.open_file(path.clone()) {
+                                Ok(_) => {
+                                    println!("File opened successfully");
+                                }
+                                Err(e) => {
+                                    eprintln!("Failed to open file: {}", e);
+                                }
+                            }
+                        }
+                        if let Some(window) = &self.window {
+                            window.request_redraw();
+                        }
+                    }
+                    None => {
+                        println!("File dialog cancelled");
+                    }
+                }
+                true
+            }
+            KeyCode::KeyW => {
+                // Close Tab (Ctrl+W)
+                if let Some(ref mut editor) = self.editor {
+                    editor.close_active_tab();
+                    println!("Closed active tab");
+                    if let Some(window) = &self.window {
+                        window.request_redraw();
+                    }
+                }
+                true
+            }
             KeyCode::KeyZ => {
                 // Undo (placeholder for future implementation)
                 println!("Undo not yet implemented");
@@ -811,6 +875,16 @@ impl App {
             KeyCode::KeyY => {
                 // Redo (placeholder for future implementation)
                 println!("Redo not yet implemented");
+                true
+            }
+            KeyCode::Tab => {
+                // Next Tab (Ctrl+Tab)
+                if let Some(ref mut editor) = self.editor {
+                    editor.next_tab();
+                    if let Some(window) = &self.window {
+                        window.request_redraw();
+                    }
+                }
                 true
             }
             _ => false,
@@ -959,6 +1033,12 @@ impl ApplicationHandler for App {
             WindowEvent::CursorMoved { position, .. } => {
                 self.mouse_pos = (position.x as f32, position.y as f32);
                 
+                // Check if menu is open - if so, only update menu hover
+                let menu_is_open = self.menubar.as_ref().map_or(false, |m| m.is_menu_open());
+                
+                // Check if command palette is open
+                let command_palette_open = self.command_palette.as_ref().map_or(false, |cp| cp.is_visible());
+                
                 if let Some(ref mut titlebar) = self.titlebar {
                     titlebar.update_hover(self.mouse_pos.0, self.mouse_pos.1);
                 }
@@ -967,47 +1047,64 @@ impl ApplicationHandler for App {
                     menubar.update_hover_with_font(self.mouse_pos.0, self.mouse_pos.1, &mut self.font_manager);
                 }
                 
-                if let Some(ref mut activitybar) = self.activitybar {
-                    activitybar.update_hover(self.mouse_pos.0, self.mouse_pos.1);
-                }
-                
+                // Always update command palette hover (it's a modal overlay)
                 if let Some(ref mut command_palette) = self.command_palette {
                     command_palette.update_hover(self.mouse_pos.0, self.mouse_pos.1);
                 }
                 
-                if let Some(ref mut editor) = self.editor {
-                    editor.update_hover(self.mouse_pos.0, self.mouse_pos.1);
+                // Skip updating other elements if menu dropdown is open OR command palette is open
+                if !menu_is_open && !command_palette_open {
+                    if let Some(ref mut activitybar) = self.activitybar {
+                        activitybar.update_hover(self.mouse_pos.0, self.mouse_pos.1);
+                    }
                     
-                    // Handle mouse drag for text selection
-                    let mono_font = self.font_manager.create_font("", 14.0, 400);
-                    editor.handle_mouse_drag(self.mouse_pos.0, self.mouse_pos.1, &mono_font);
-                    
-                    // Change cursor to text cursor when over editor content
-                    if let Some(window) = &self.window {
-                        use winit::window::CursorIcon;
-                        if editor.is_over_editor_content(self.mouse_pos.0, self.mouse_pos.1) {
-                            window.set_cursor(CursorIcon::Text);
-                        } else {
-                            window.set_cursor(CursorIcon::Default);
+                    if let Some(ref mut editor) = self.editor {
+                        editor.update_hover(self.mouse_pos.0, self.mouse_pos.1);
+                        
+                        // Handle mouse drag for text selection
+                        let mono_font = self.font_manager.create_font("", 14.0, 400);
+                        editor.handle_mouse_drag(self.mouse_pos.0, self.mouse_pos.1, &mono_font);
+                        
+                        // Change cursor to text cursor when over editor content
+                        if let Some(window) = &self.window {
+                            use winit::window::CursorIcon;
+                            if editor.is_over_editor_content(self.mouse_pos.0, self.mouse_pos.1) {
+                                window.set_cursor(CursorIcon::Text);
+                            } else {
+                                window.set_cursor(CursorIcon::Default);
+                            }
                         }
                     }
-                }
-                
-                // Update panel hover states and handle resizing
-                if let Some(ref mut left_panel) = self.left_panel {
-                    if left_panel.is_resizing() {
-                        left_panel.resize_to(self.mouse_pos.0);
-                        self.layout_config.left_panel_width = left_panel.width();
-                        // Rebuild UI to update layout
-                        if let Some(window) = &self.window {
-                            let size = window.inner_size();
-                            self.build_ui(size.width as f32, size.height as f32);
+                    
+                    // Update panel hover states and handle resizing
+                    if let Some(ref mut left_panel) = self.left_panel {
+                        if left_panel.is_resizing() {
+                            left_panel.resize_to(self.mouse_pos.0);
+                            self.layout_config.left_panel_width = left_panel.width();
+                            // Rebuild UI to update layout
+                            if let Some(window) = &self.window {
+                                let size = window.inner_size();
+                                self.build_ui(size.width as f32, size.height as f32);
+                            }
+                        } else if left_panel.is_scrollbar_dragging() {
+                            // Handle scrollbar drag
+                            left_panel.handle_mouse_drag(self.mouse_pos.1);
+                        } else {
+                            left_panel.update_hover(self.mouse_pos.0, self.mouse_pos.1);
                         }
-                    } else if left_panel.is_scrollbar_dragging() {
-                        // Handle scrollbar drag
-                        left_panel.handle_mouse_drag(self.mouse_pos.1);
-                    } else {
-                        left_panel.update_hover(self.mouse_pos.0, self.mouse_pos.1);
+                    }
+                } else {
+                    // Menu is open - clear hover states on other elements
+                    if let Some(ref mut left_panel) = self.left_panel {
+                        // Still handle resizing even when menu is open
+                        if left_panel.is_resizing() {
+                            left_panel.resize_to(self.mouse_pos.0);
+                            self.layout_config.left_panel_width = left_panel.width();
+                            if let Some(window) = &self.window {
+                                let size = window.inner_size();
+                                self.build_ui(size.width as f32, size.height as f32);
+                            }
+                        }
                     }
                 }
                 
@@ -1224,6 +1321,21 @@ impl ApplicationHandler for App {
                         left_panel.handle_mouse_press(self.mouse_pos.0, self.mouse_pos.1);
                         if !left_panel.is_scrollbar_dragging() {
                             left_panel.on_click();
+                            
+                            // Check if a file was clicked and open it
+                            if let Some(file_path) = left_panel.take_clicked_file() {
+                                println!("Opening file: {}", file_path.display());
+                                if let Some(ref mut editor) = self.editor {
+                                    match editor.open_file(file_path.clone()) {
+                                        Ok(_) => {
+                                            println!("File opened successfully");
+                                        }
+                                        Err(e) => {
+                                            eprintln!("Failed to open file: {}", e);
+                                        }
+                                    }
+                                }
+                            }
                         }
                         if let Some(window) = &self.window {
                             window.request_redraw();
@@ -1380,6 +1492,68 @@ impl ApplicationHandler for App {
                     }
                     Ime::Disabled => {
                         self.ime_enabled = false;
+                    }
+                }
+            }
+            
+            WindowEvent::MouseWheel { delta, .. } => {
+                use winit::event::MouseScrollDelta;
+                
+                // Convert scroll delta to pixels
+                let scroll_amount = match delta {
+                    MouseScrollDelta::LineDelta(_x, y) => {
+                        // Line delta: typically from mouse wheel
+                        // Multiply by line height for smooth scrolling
+                        y * 40.0 // 40 pixels per line
+                    }
+                    MouseScrollDelta::PixelDelta(pos) => {
+                        // Pixel delta: typically from touchpad
+                        pos.y as f32
+                    }
+                };
+                
+                // Invert scroll direction to match natural scrolling
+                let scroll_delta = -scroll_amount;
+                
+                // Check if command palette is open and handle its scrolling
+                if let Some(ref mut command_palette) = self.command_palette {
+                    if command_palette.is_visible() {
+                        command_palette.scroll(scroll_delta);
+                        if let Some(window) = &self.window {
+                            window.request_redraw();
+                        }
+                        return;
+                    }
+                }
+                
+                // Check if scrolling over left panel (explorer)
+                if let Some(ref mut left_panel) = self.left_panel {
+                    if left_panel.contains(self.mouse_pos.0, self.mouse_pos.1) {
+                        left_panel.explorer_mut().scroll(scroll_delta);
+                        if let Some(window) = &self.window {
+                            window.request_redraw();
+                        }
+                        return;
+                    }
+                }
+                
+                // Check if scrolling over editor
+                if let Some(ref mut editor) = self.editor {
+                    if editor.contains(self.mouse_pos.0, self.mouse_pos.1) {
+                        editor.scroll(scroll_delta);
+                        if let Some(window) = &self.window {
+                            window.request_redraw();
+                        }
+                        return;
+                    }
+                }
+                
+                // Global fallback: scroll the editor if no specific component is under cursor
+                // This allows scrolling from anywhere in the window (titlebar, panels, etc.)
+                if let Some(ref mut editor) = self.editor {
+                    editor.scroll(scroll_delta);
+                    if let Some(window) = &self.window {
+                        window.request_redraw();
                     }
                 }
             }

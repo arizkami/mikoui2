@@ -1,60 +1,56 @@
-# Global Rabital Settings
-# These settings apply to all projects unless overridden by .rabital/settings.yml
+# Rabital IDE Settings
+# Project-specific configuration for the Rabital editor
 
-editor:
-  theme: "default"
-  font_family: "Consolas"
-  font_size: 14
-  line_height: 1.5
-  tab_size: 4
-  insert_spaces: true
-  auto_save: false
-  auto_save_delay: 1000
-  word_wrap: false
-  show_line_numbers: true
-  show_minimap: false
-  highlight_current_line: true
-  format_on_save: false
-  trim_trailing_whitespace: false
-  insert_final_newline: false
-
+# Language-specific settings
 languages:
   rust:
     tab_size: 4
     format_on_save: true
-  
+    
   javascript:
     tab_size: 2
     format_on_save: true
-  
+    
   typescript:
     tab_size: 2
     format_on_save: true
-  
+    
   python:
     tab_size: 4
     format_on_save: true
+    
+  yaml:
+    tab_size: 2
+    format_on_save: true
 
+# File explorer
 explorer:
   exclude_patterns:
     - "build/**"
     - "target/**"
     - "node_modules/**"
     - ".git/**"
+    - "*.dll"
+    - "*.pdb"
+    - "*.exe"
+  
   show_hidden_files: false
   sort_folders_first: true
 
+# Terminal
 terminal:
   shell: "powershell.exe"
   font_size: 13
   cursor_blink: true
   scrollback: 10000
 
+# Git integration
 git:
-  auto_fetch: false
+  auto_fetch: true
   show_inline_blame: false
   show_gutter_indicators: true
 
+# Search
 search:
   case_sensitive: false
   whole_word: false

@@ -1,0 +1,243 @@
+# Rabital IDE Tasks
+# Define build, test, and run tasks for the project
+
+version: "1.0"
+
+tasks:
+  # Build tasks
+  - name: "Build (Debug)"
+    type: "shell"
+    command: "cargo"
+    args:
+      - "build"
+      - "--bin"
+      - "rabital"
+    group: "build"
+    presentation:
+      reveal: "always"
+      panel: "shared"
+    problem_matcher: "$rustc"
+    
+  - name: "Build (Release)"
+    type: "shell"
+    command: "cargo"
+    args:
+      - "build"
+      - "--release"
+      - "--bin"
+      - "rabital"
+    group: "build"
+    presentation:
+      reveal: "always"
+      panel: "shared"
+    problem_matcher: "$rustc"
+    
+  - name: "Build and Copy (Debug)"
+    type: "shell"
+    command: "pwsh"
+    args:
+      - "-File"
+      - "./build-debug.ps1"
+    group: "build"
+    presentation:
+      reveal: "always"
+      panel: "shared"
+    
+  - name: "Build and Copy (Release)"
+    type: "shell"
+    command: "pwsh"
+    args:
+      - "-File"
+      - "./build-release.ps1"
+    group: "build"
+    presentation:
+      reveal: "always"
+      panel: "shared"
+    is_default: true
+    
+  # Run tasks
+  - name: "Run (Debug)"
+    type: "shell"
+    command: "cargo"
+    args:
+      - "run"
+      - "--bin"
+      - "rabital"
+    group: "run"
+    presentation:
+      reveal: "always"
+      panel: "dedicated"
+    depends_on:
+      - "Build (Debug)"
+    
+  - name: "Run (Release)"
+    type: "shell"
+    command: "cargo"
+    args:
+      - "run"
+      - "--release"
+      - "--bin"
+      - "rabital"
+    group: "run"
+    presentation:
+      reveal: "always"
+      panel: "dedicated"
+    depends_on:
+      - "Build (Release)"
+    
+  - name: "Run from bin (Debug)"
+    type: "shell"
+    command: "./build/debug/bin/rabital.exe"
+    group: "run"
+    presentation:
+      reveal: "always"
+      panel: "dedicated"
+    
+  - name: "Run from bin (Release)"
+    type: "shell"
+    command: "./build/release/bin/rabital.exe"
+    group: "run"
+    presentation:
+      reveal: "always"
+      panel: "dedicated"
+    
+  # Test tasks
+  - name: "Test All"
+    type: "shell"
+    command: "cargo"
+    args:
+      - "test"
+      - "--workspace"
+    group: "test"
+    presentation:
+      reveal: "always"
+      panel: "shared"
+    problem_matcher: "$rustc"
+    
+  - name: "Test (mikoui)"
+    type: "shell"
+    command: "cargo"
+    args:
+      - "test"
+      - "-p"
+      - "mikoui"
+    group: "test"
+    presentation:
+      reveal: "always"
+      panel: "shared"
+    
+  - name: "Test (mikoeditor)"
+    type: "shell"
+    command: "cargo"
+    args:
+      - "test"
+      - "-p"
+      - "mikoeditor"
+    group: "test"
+    presentation:
+      reveal: "always"
+      panel: "shared"
+    
+  # Clean tasks
+  - name: "Clean"
+    type: "shell"
+    command: "cargo"
+    args:
+      - "clean"
+    group: "build"
+    presentation:
+      reveal: "always"
+      panel: "shared"
+    
+  - name: "Clean All"
+    type: "shell"
+    command: "pwsh"
+    args:
+      - "-Command"
+      - "cargo clean; Remove-Item -Recurse -Force build -ErrorAction SilentlyContinue"
+    group: "build"
+    presentation:
+      reveal: "always"
+      panel: "shared"
+    
+  # Check tasks
+  - name: "Check"
+    type: "shell"
+    command: "cargo"
+    args:
+      - "check"
+      - "--workspace"
+    group: "build"
+    presentation:
+      reveal: "always"
+      panel: "shared"
+    problem_matcher: "$rustc"
+    
+  - name: "Clippy"
+    type: "shell"
+    command: "cargo"
+    args:
+      - "clippy"
+      - "--workspace"
+      - "--"
+      - "-D"
+      - "warnings"
+    group: "build"
+    presentation:
+      reveal: "always"
+      panel: "shared"
+    problem_matcher: "$rustc"
+    
+  - name: "Format"
+    type: "shell"
+    command: "cargo"
+    args:
+      - "fmt"
+      - "--all"
+    group: "build"
+    presentation:
+      reveal: "silent"
+      panel: "shared"
+    
+  # Documentation
+  - name: "Build Docs"
+    type: "shell"
+    command: "cargo"
+    args:
+      - "doc"
+      - "--workspace"
+      - "--no-deps"
+    group: "build"
+    presentation:
+      reveal: "always"
+      panel: "shared"
+    
+  - name: "Open Docs"
+    type: "shell"
+    command: "cargo"
+    args:
+      - "doc"
+      - "--workspace"
+      - "--no-deps"
+      - "--open"
+    group: "build"
+    presentation:
+      reveal: "silent"
+      panel: "shared"
+
+# Problem matchers
+problem_matchers:
+  rustc:
+    owner: "rustc"
+    file_location:
+      - "relative"
+      - "${workspaceFolder}"
+    pattern:
+      - regexp: "^(warning|warn|error)(?:\\[(.*?)\\])?: (.*)$"
+        severity: 1
+        message: 3
+        code: 2
+      - regexp: "^\\s+-->\\s+(.*):(\\d+):(\\d+)$"
+        file: 1
+        line: 2
+        column: 3

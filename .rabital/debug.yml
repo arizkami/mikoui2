@@ -1,0 +1,119 @@
+# Rabital IDE Debug Configuration
+# Configure debugging for Rust applications
+
+version: "1.0"
+
+configurations:
+  # Debug the main Rabital application
+  - name: "Debug Rabital"
+    type: "lldb"
+    request: "launch"
+    program: "${workspaceFolder}/build/debug/rabital.exe"
+    args: []
+    cwd: "${workspaceFolder}"
+    stop_on_entry: false
+    environment: []
+    external_console: false
+    source_map:
+      "/rustc/*": "${env:USERPROFILE}/.rustup/toolchains/stable-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+    
+  - name: "Debug Rabital (Release)"
+    type: "lldb"
+    request: "launch"
+    program: "${workspaceFolder}/build/release/rabital.exe"
+    args: []
+    cwd: "${workspaceFolder}"
+    stop_on_entry: false
+    environment: []
+    external_console: false
+    
+  # Debug with specific workspace
+  - name: "Debug Rabital (with workspace)"
+    type: "lldb"
+    request: "launch"
+    program: "${workspaceFolder}/build/debug/rabital.exe"
+    args:
+      - "${workspaceFolder}"
+    cwd: "${workspaceFolder}"
+    stop_on_entry: false
+    environment: []
+    external_console: false
+    
+  # Debug unit tests
+  - name: "Debug Tests (mikoui)"
+    type: "lldb"
+    request: "launch"
+    program: "${workspaceFolder}/build/debug/deps/mikoui-*.exe"
+    args:
+      - "--nocapture"
+    cwd: "${workspaceFolder}"
+    stop_on_entry: false
+    environment: []
+    external_console: false
+    
+  - name: "Debug Tests (mikoeditor)"
+    type: "lldb"
+    request: "launch"
+    program: "${workspaceFolder}/build/debug/deps/mikoeditor-*.exe"
+    args:
+      - "--nocapture"
+    cwd: "${workspaceFolder}"
+    stop_on_entry: false
+    environment: []
+    external_console: false
+    
+  # Attach to running process
+  - name: "Attach to Rabital"
+    type: "lldb"
+    request: "attach"
+    program: "${workspaceFolder}/build/debug/rabital.exe"
+    wait_for: true
+
+# Breakpoint settings
+breakpoints:
+  exception:
+    rust_panic: "always"
+    cpp_throw: "never"
+  
+  function:
+    - "rust_panic"
+    - "rust_begin_unwind"
+
+# Watch expressions (common debugging expressions)
+watch:
+  - name: "Window Size"
+    expression: "window.inner_size()"
+  - name: "Mouse Position"
+    expression: "self.mouse_pos"
+  - name: "Theme Colors"
+    expression: "self.theme_colors"
+
+# Launch settings
+launch:
+  pre_launch_task: "Build (Debug)"
+  post_debug_task: null
+  
+  # Environment variables for debugging
+  env:
+    RUST_BACKTRACE: "1"
+    RUST_LOG: "debug"
+
+# LLDB settings
+lldb:
+  display_format: "auto"
+  show_disassembly: "never"
+  derive_source_map: true
+  
+  # Source map for Rust standard library
+  source_map:
+    "/rustc": "${env:USERPROFILE}/.rustup/toolchains/stable-x86_64-pc-windows-msvc/lib/rustlib/src/rust"
+
+# Visual Studio debugger settings (alternative to LLDB)
+vs_debugger:
+  type: "cppvsdbg"
+  symbol_search_path: "${workspaceFolder}/build/debug"
+  enable_step_filtering: true
+  logging:
+    module_load: false
+    trace: false
+    engine_logging: false

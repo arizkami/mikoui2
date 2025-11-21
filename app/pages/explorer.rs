@@ -78,6 +78,8 @@ pub struct Explorer {
     scrollbar_dragging: bool,
     drag_start_y: f32,
     drag_start_offset: f32,
+    // File opening
+    clicked_file: Option<PathBuf>,
 }
 
 impl Explorer {
@@ -97,6 +99,7 @@ impl Explorer {
             scrollbar_dragging: false,
             drag_start_y: 0.0,
             drag_start_offset: 0.0,
+            clicked_file: None,
         }
     }
     
@@ -120,6 +123,7 @@ impl Explorer {
             scrollbar_dragging: false,
             drag_start_y: 0.0,
             drag_start_offset: 0.0,
+            clicked_file: None,
         };
         
         explorer.load_root();
@@ -412,10 +416,23 @@ impl Explorer {
     pub fn scroll(&mut self, delta: f32) {
         let item_height = 28.0;
         let visible_items = self.get_visible_items();
-        let total_height = visible_items.len() as f32 * item_height;
-        let max_scroll = (total_height - self.height).max(0.0);
+        let total_items = visible_items.len().max(1);
+        let total_height = total_items as f32 * item_height;
+        let visible_height = self.height - 40.0; // Account for header
+        let max_scroll = (total_height - visible_height).max(0.0);
         
+        // Apply scroll delta with smooth clamping
         self.scroll_offset = (self.scroll_offset + delta).clamp(0.0, max_scroll);
+    }
+    
+    /// Get the clicked file path (if any) and clear it
+    pub fn take_clicked_file(&mut self) -> Option<PathBuf> {
+        self.clicked_file.take()
+    }
+    
+    /// Check if a file was clicked
+    pub fn has_clicked_file(&self) -> bool {
+        self.clicked_file.is_some()
     }
 }
 
@@ -579,7 +596,23 @@ impl Widget for Explorer {
         }
         
         if let Some(index) = self.hover_index {
-            self.toggle_item(index);
+            let visible = self.get_visible_items();
+            if let Some(item) = visible.get(index) {
+                let is_dir = item.is_dir;
+                let path = item.path.clone();
+                
+                // Drop the borrow before mutating self
+                drop(visible);
+                
+                if is_dir {
+                    // Toggle directory
+                    self.toggle_item(index);
+                } else {
+                    // Open file
+                    println!("File clicked: {}", path.display());
+                    self.clicked_file = Some(path);
+                }
+            }
         }
     }
     

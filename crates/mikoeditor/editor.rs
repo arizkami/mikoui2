@@ -609,12 +609,20 @@ impl Editor {
         y >= content_y && y < content_y + content_height
     }
     
+    pub fn contains(&self, x: f32, y: f32) -> bool {
+        x >= self.x && x < self.x + self.width && 
+        y >= self.y && y < self.y + self.height
+    }
+    
     pub fn scroll(&mut self, delta: f32) {
         if let Some(tab) = self.tab_manager.get_active_tab_mut() {
-            tab.scroll_offset = (tab.scroll_offset + delta).max(0.0);
             let content_height = self.height - self.tab_bar.height();
-            let max_scroll = (tab.buffer.len_lines() as f32 * self.line_height) - content_height;
-            tab.scroll_offset = tab.scroll_offset.min(max_scroll.max(0.0));
+            let total_lines = tab.buffer.len_lines().max(1);
+            let total_content_height = total_lines as f32 * self.line_height;
+            let max_scroll = (total_content_height - content_height).max(0.0);
+            
+            // Apply scroll delta with smooth clamping
+            tab.scroll_offset = (tab.scroll_offset + delta).clamp(0.0, max_scroll);
         }
     }
     

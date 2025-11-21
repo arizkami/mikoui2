@@ -58,6 +58,11 @@ impl MenuBar {
         }
     }
     
+    /// Check if a dropdown menu is currently open
+    pub fn is_menu_open(&self) -> bool {
+        self.active_menu.is_some()
+    }
+    
     /// Get the ID of the currently hovered menu item (if any)
     pub fn get_clicked_item_id(&self) -> Option<i32> {
         if let Some(menu_index) = self.active_menu {

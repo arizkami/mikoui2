@@ -310,6 +310,12 @@ impl CommandPalette {
             None
         }
     }
+    
+    pub fn scroll(&mut self, delta: f32) {
+        let max_scroll = (self.filtered_commands.len() as f32 * Self::ITEM_HEIGHT)
+            - (Self::MAX_VISIBLE_ITEMS as f32 * Self::ITEM_HEIGHT);
+        self.scroll_offset = (self.scroll_offset + delta).max(0.0).min(max_scroll.max(0.0));
+    }
 }
 
 impl Widget for CommandPalette {

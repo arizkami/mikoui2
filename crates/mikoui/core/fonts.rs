@@ -403,6 +403,50 @@ impl FontManager {
         font
     }
     
+    /// Create monospace font with multi-language support
+    /// Uses sample text to detect language and select appropriate fallback fonts
+    pub fn create_monospace_font(&mut self, text: &str, size: f32, weight: i32) -> Font {
+        // Detect if text contains non-ASCII characters
+        let has_special_chars = text.chars().any(|c| c as u32 > 127);
+        
+        if !has_special_chars {
+            // Use regular monospace font for ASCII-only text
+            return self.create_mono_font(size, weight);
+        }
+        
+        // For text with special characters, use language-aware font selection
+        // but still prefer monospace characteristics
+        let language = Self::detect_language(text);
+        
+        // Try to use monospace font first, but fall back to language-specific fonts
+        // if the monospace font doesn't support the characters
+        let typeface = match language {
+            Language::English | Language::Other => {
+                self.monospace_typeface.as_ref()
+                    .or(self.primary_typeface.as_ref())
+                    .expect("No typeface available")
+            }
+            _ => {
+                // For non-English, prefer language-specific fonts over monospace
+                // since most monospace fonts don't support CJK/Thai/Arabic well
+                self.get_typeface_for_language(language)
+            }
+        };
+        
+        let mut font = Font::from_typeface(typeface, size);
+        
+        // Apply monospace-optimized settings
+        font.set_edging(skia_safe::font::Edging::SubpixelAntiAlias);
+        font.set_subpixel(true);
+        font.set_linear_metrics(false);
+        font.set_hinting(skia_safe::FontHinting::Slight);
+        font.set_force_auto_hinting(false);
+        font.set_embedded_bitmaps(false);
+        font.set_baseline_snap(true);
+        
+        font
+    }
+    
     /// Set custom monospace font (e.g., JetBrains Mono, Fira Code)
     pub fn set_monospace_font(&mut self, font_data: &[u8]) -> bool {
         let data = Data::new_copy(font_data);

@@ -138,6 +138,10 @@ impl LeftPanel {
     pub fn is_scrollbar_dragging(&self) -> bool {
         self.explorer.is_scrollbar_dragging()
     }
+    
+    pub fn take_clicked_file(&mut self) -> Option<std::path::PathBuf> {
+        self.explorer.take_clicked_file()
+    }
 }
 
 impl Widget for LeftPanel {
